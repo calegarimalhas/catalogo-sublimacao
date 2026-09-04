@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo Sublimação - Calegari</title>
+    <!-- Otimizações de Domínio Personalizado -->
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Metadados de Compartilhamento -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Calegari - Catálogo de Sublimação">
+    <meta property="og:description" content="Confira nosso catálogo de sublimação (Adulto e Infantil) e faça seu pedido de impressão!">
+    <meta property="og:image" content="preview.jpg">
+    <meta property="og:site_name" content="Calegari Sublimação">
+
+    <link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Calegari Sublimação</h1>
+            <div class="header-right">
+                <button class="help-btn" onclick="openHelpModal()" title="Como fazer seu pedido">
+                    <span class="help-icon">❓</span> Como Pedir
+                </button>
+                <div class="cart-icon" onclick="toggleCart()" title="Ver sacola de pedidos">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" width="16" height="16" fill="currentColor" style="vertical-align: middle;"><path d="M0 24C0 10.7 10.7 0 24 0H69.5c22 0 41.5 12.8 50.6 32h411c26.3 0 45.5 25 38.6 50.4l-41 152.3c-8.5 31.4-37 53.3-69.5 53.3H170.7l5.4 28.5c2.2 11.3 12.1 19.5 23.6 19.5H488c13.3 0 24 10.7 24 24s-10.7 24-24 24H199.7c-34.6 0-64.3-24.6-70.7-58.5L77.4 54.5c-.7-3.8-4-6.5-7.9-6.5H24C10.7 48 0 37.3 0 24zM128 464a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zm336-48a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/></svg>
+                    <span id="cart-count">0</span>
+                </div>
+            </div>
+        </div>
+        <!-- Banner Guia em Passos -->
+        <div id="instruction-banner" class="instruction-banner">
+            <span class="step-tag">💡 <strong>Como pedir:</strong></span>
+            <span class="step-item">1. Clique na estampa</span>
+            <span class="step-arrow">➔</span>
+            <span class="step-item">2. Escolha os tamanhos de impressão</span>
+            <span class="step-arrow">➔</span>
+            <span class="step-item">3. Envie o pedido</span>
+        </div>
+
+        <div class="tabs-wrapper">
+            <button class="tabs-arrow-btn tabs-arrow-left" onclick="scrollTabs(-180)" aria-label="Abas à esquerda">‹</button>
+            <nav id="tabs-container">
+                <!-- As abas serão geradas via JS -->
+            </nav>
+            <button class="tabs-arrow-btn tabs-arrow-right" onclick="scrollTabs(180)" aria-label="Abas à direita">›</button>
+        </div>
+    </header>
+
+    <!-- Sub-filtros por Tema -->
+    <div id="subfilters-container" class="subfilters-container" style="display: none;">
+        <div id="subfilters-list" class="subfilters-list"></div>
+    </div>
+
+    <main id="catalog-container">
+        <!-- O grid de imagens será gerado via JS -->
+    </main>
+
+    <!-- Modal do Produto -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div class="modal-body">
+                <div class="image-wrapper" onclick="openZoomModal()" title="Clique para ampliar">
+                    <img id="modal-image" src="" alt="Estampa">
+                    <video id="modal-video" src="" autoplay loop muted playsinline style="display: none; width: 100%; border-radius: 12px;"></video>
+                    <span class="zoom-badge-hint">🔍 Clique para ampliar</span>
+                </div>
+                <div class="product-info">
+                    <h2 id="modal-title">Código</h2>
+
+                    <p class="modal-help-tip">👇 Selecione a quantidade desejada para cada tamanho de impressão:</p>
+
+                    <div class="size-selector">
+                        <h3>Tamanhos de Impressão (Quantidade):</h3>
+                        <div class="sizes-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                            <div class="size-input-group">
+                                <label for="size-default">Tamanho Default<br><small style="font-weight: normal; color: #666;">(Original do arquivo)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('size-default', -1)">-</button>
+                                    <input type="number" id="size-default" min="0" value="0">
+                                    <button type="button" onclick="changeQty('size-default', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="size-369mm" id="label-size-369mm">369mm<br><small style="font-weight: normal; color: #666;">(Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('size-369mm', -1)">-</button>
+                                    <input type="number" id="size-369mm" min="0" value="0">
+                                    <button type="button" onclick="changeQty('size-369mm', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="size-300mm" id="label-size-300mm">300mm<br><small style="font-weight: normal; color: #666;">(Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('size-300mm', -1)">-</button>
+                                    <input type="number" id="size-300mm" min="0" value="0">
+                                    <button type="button" onclick="changeQty('size-300mm', 1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="add-to-cart-container">
+                        <div id="modal-error-msg" style="display: none; color: #ff4757; font-size: 0.95rem; margin-bottom: 10px; text-align: center; font-weight: 600;"></div>
+                        <button class="add-to-cart-btn" onclick="addToCart()">Adicionar ao Pedido ➔</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ajuda / Como Pedir -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content help-modal-content">
+            <span class="close-btn" onclick="closeHelpModal()">&times;</span>
+            <div class="help-modal-body">
+                <h2>❓ Como Fazer seu Pedido de Sublimação</h2>
+                <p class="help-subtitle">Siga este passo a passo simples:</p>
+                
+                <div class="help-steps">
+                    <div class="help-step-card">
+                        <div class="step-number">1</div>
+                        <div class="step-info">
+                            <strong>Escolha a Estampa</strong>
+                            <span>Navegue entre Sublimação Adulta e Infantil e escolha a estampa.</span>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step-card">
+                        <div class="step-number">2</div>
+                        <div class="step-info">
+                            <strong>Defina as Quantidades e Tamanhos</strong>
+                            <span>Escolha entre Default, 369mm e 300mm (calculados proporcionalmente) e use os botões <b>+</b> e <b>-</b>.</span>
+                        </div>
+                    </div>
+
+                    <div class="help-step-card">
+                        <div class="step-number">3</div>
+                        <div class="step-info">
+                            <strong>Envie o Pedido</strong>
+                            <span>Finalize seu pedido e envie diretamente pelo WhatsApp para produção!</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="help-close-action-btn" onclick="closeHelpModal()">Entendi! Ver Estampas ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carrinho Lateral (Drawer) -->
+    <div id="cart-drawer" class="cart-drawer">
+        <div class="cart-header">
+            <h2>Seu Pedido de Sublimação</h2>
+            <button class="close-cart" onclick="toggleCart()">&times;</button>
+        </div>
+        <div id="cart-items" class="cart-items">
+            <!-- Itens do carrinho -->
+            <div class="empty-cart-message">Seu carrinho está vazio.</div>
+        </div>
+        <div class="cart-footer">
+            <div id="cart-summary" class="cart-summary" style="display: none;">
+                <div class="cart-summary-row">
+                    <span>Total de impressões:</span>
+                    <strong id="cart-summary-pieces">0</strong>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="checkout-btn" onclick="checkout('whatsapp')" id="checkout-btn-whatsapp" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="16" height="16" fill="currentColor" style="vertical-align: middle;"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zM223.9 413.6c-32.9 0-65.1-8.8-93.5-25.5l-6.7-4-69.5 18.2 18.5-67.7-4.4-7c-18.4-29.2-28.1-63.2-28.1-98.2 0-101.4 82.5-183.9 184-183.9 50.1 0 97.2 19.5 132.6 55 35.4 35.4 54.9 82.5 54.9 132.7 0 101.5-82.6 183.9-184.2 183.9zM324.9 276.4c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3s19.9 53.7 22.7 57.4c2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg> Enviar Pedido pelo WhatsApp
+                </button>
+                <button class="checkout-btn" onclick="enviarParaHotFolderLocal()" id="checkout-btn-hotfolder" disabled style="background: #2b53a3; color: white;">
+                    🖨️ Enviar pra Roland (Hot Folder RIP)
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="cart-overlay" class="cart-overlay" onclick="toggleCart()"></div>
+
+    <!-- Barra Flutuante de Carrinho -->
+    <div id="sticky-cart-bar" class="sticky-cart-bar" style="display: none;" onclick="openCart()">
+        <div class="sticky-cart-info">
+            <span class="sticky-cart-icon">🛒</span>
+            <span id="sticky-cart-text">Ver Meu Pedido (0 impressões)</span>
+        </div>
+        <button class="sticky-cart-btn">Enviar Pedido ➔</button>
+    </div>
+
+    <!-- Modal de Zoom na Imagem -->
+    <div id="zoom-modal" class="zoom-modal" onclick="closeZoomModal()">
+        <span class="zoom-close-btn" onclick="closeZoomModal()">&times; Fechar</span>
+        <div class="zoom-content" onclick="event.stopPropagation()">
+            <img id="zoom-image" src="" alt="Zoom da Estampa">
+            <video id="zoom-video" src="" autoplay loop muted playsinline style="display: none;"></video>
+            <p class="zoom-tip">🔍 Dica: toque na foto para ver mais de perto</p>
+        </div>
+    </div>
+
+    <!-- Toast de Feedback -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="tabela_precos.js?v=1"></script>
+    <script src="dados.js?v=1"></script>
+    <script src="script.js?v=1"></script>
+</body>
+</html>
