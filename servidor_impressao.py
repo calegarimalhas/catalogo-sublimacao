@@ -182,7 +182,8 @@ def redimensionar_e_salvar_arte(caminho_origem, caminho_destino, tamanho_nome):
 
 def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
     """
-    Processa o pedido e envia as estampas com o tamanho exato para a Hot Folder.
+    Processa o pedido e envia 1 ÚNICO arquivo por tamanho selecionado para a Hot Folder,
+    redimensionado no tamanho exato (300mm / 369mm / Default) e com a quantidade informada no nome do arquivo.
     """
     if not os.path.exists(pasta_destino_hotfolder):
         os.makedirs(pasta_destino_hotfolder, exist_ok=True)
@@ -205,21 +206,24 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
         ext = os.path.splitext(arquivo_origem)[1]
 
         for tamanho_nome, quantidade in tamanhos.items():
-            for i in range(1, quantidade + 1):
-                tamanho_slug = tamanho_nome.replace(" ", "_").replace("(", "").replace(")", "")
-                nome_destino = f"PEDIDO_{codigo}_{tamanho_slug}_copia{i}{ext}"
-                caminho_destino = os.path.join(pasta_destino_hotfolder, nome_destino)
+            if quantidade <= 0:
+                continue
 
-                try:
-                    print(f"⚙️ Processando {os.path.basename(arquivo_origem)} para tamanho {tamanho_nome}...")
-                    redimensionar_e_salvar_arte(arquivo_origem, caminho_destino, tamanho_nome)
-                    msg = f"✓ [ENVIADO] {os.path.basename(arquivo_origem)} ➔ {nome_destino}"
-                    print(msg)
-                    relatorio.append(msg)
-                except Exception as e:
-                    msg = f"❌ [ERRO] Falha ao processar {codigo}: {e}"
-                    print(msg)
-                    relatorio.append(msg)
+            tamanho_slug = tamanho_nome.replace(" ", "_").replace("(", "").replace(")", "")
+            # Nomeia o arquivo com o ID, tamanho e quantidade para fácil identificação do operador no VersaWorks
+            nome_destino = f"ESTAMPA_{codigo}_{tamanho_slug}_QTD{quantidade}{ext}"
+            caminho_destino = os.path.join(pasta_destino_hotfolder, nome_destino)
+
+            try:
+                print(f"⚙️ Processando {os.path.basename(arquivo_origem)} ➔ Tamanho: {tamanho_nome} | Qtd: {quantidade}...")
+                redimensionar_e_salvar_arte(arquivo_origem, caminho_destino, tamanho_nome)
+                msg = f"✓ [ENVIADO LEVE] {os.path.basename(arquivo_origem)} ➔ {nome_destino}"
+                print(msg)
+                relatorio.append(msg)
+            except Exception as e:
+                msg = f"❌ [ERRO] Falha ao processar {codigo}: {e}"
+                print(msg)
+                relatorio.append(msg)
 
     return relatorio
 
