@@ -4,8 +4,10 @@ Empresa: Calegari Sublimação
 
 Este script roda localmente no computador que está conectado à impressora Roland.
 Ele recebe os pedidos do site, converte qualquer arte (.pdf, .jpg, .png, .tif, .eps) para formato PDF,
-ajusta as dimensões físicas (369mm, 300mm ou Default), limita imagens raster a no máximo 150 DPI para otimização
-e replica a quantidade de cópias em PÁGINAS dentro de um ÚNICO arquivo .pdf leve enviado à Hot Folder do VersaWorks.
+ajusta as dimensões físicas (369mm, 300mm ou Default), limita imagens raster a no máximo 150 DPI para otimização,
+replica a quantidade de cópias em PÁGINAS dentro de um ÚNICO arquivo .pdf leve,
+e envia de forma ATÔMICA para a Hot Folder com um DELAY (pausa) de 5 segundos entre cada arquivo
+para evitar travamentos ou congelamentos no RIP da Roland.
 """
 
 import os
@@ -13,6 +15,7 @@ import shutil
 import glob
 import json
 import sys
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import fitz  # PyMuPDF para gerar e manipular PDFs vetoriais e raster
@@ -27,7 +30,12 @@ PASTA_ARTES_MASTER = r"D:\backup gabriel\SublimaçãoArtes"
 # Hot Folder do VersaWorks 5 (Fila B)
 HOT_FOLDER_VERSAWORKS = r"C:\Program Files (x86)\Roland VersaWorks\VersaWorks\Input-B"
 
+# Pasta Temporária Local (para salvar 100% do PDF antes de mover para a Hot Folder)
+PASTA_TEMP_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_jobs")
+os.makedirs(PASTA_TEMP_LOCAL, exist_ok=True)
+
 MAX_DPI = 150.0  # Limite máximo de DPI para imagens raster ficarem leves no RIP
+DELAY_ENTRE_ARQUIVOS_SEGUNDOS = 5.0  # Pausa em segundos entre o envio de cada arquivo para o VersaWorks
 
 # Mapeamento de categorias do site para pastas físicas
 MAPEAMENTO_PASTAS = {
@@ -191,21 +199,22 @@ def gerar_pdf_multipaginas(caminho_origem, caminho_destino_pdf, tamanho_nome, qu
 def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
     """
     Processa o pedido e envia 1 ÚNICO arquivo .pdf por tamanho selecionado para a Hot Folder.
-    O PDF é ajustado na dimensão física (300mm / 369mm / Default), com DPI limitado a 150 DPI
-    e contém 'quantidade' de PÁGINAS para que o VersaWorks imprima todas as cópias automaticamente.
+    - O arquivo é primeiramente salvo em uma pasta temporária e depois MOVIDO instantaneamente (atômico) para a Hot Folder.
+    - Aplica uma pausa (delay) de 5 segundos entre cada arquivo para que o Roland VersaWorks processe suavemente.
     """
     if not os.path.exists(pasta_destino_hotfolder):
         os.makedirs(pasta_destino_hotfolder, exist_ok=True)
 
     relatorio = []
-    
+    lista_tarefas = []
+
+    # Monta a lista completa de arquivos a serem gerados
     for item in itens_carrinho:
         codigo = item.get('id')
         categoria = item.get('category')
         tamanhos = item.get('sizes', {})
 
         arquivo_origem = buscar_arquivo_arte(categoria, codigo)
-        
         if not arquivo_origem:
             msg = f"❌ [NÃO ENCONTRADO] Estampa {codigo} na categoria {categoria}"
             print(msg)
@@ -215,21 +224,52 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
         for tamanho_nome, quantidade in tamanhos.items():
             if quantidade <= 0:
                 continue
+            lista_tarefas.append({
+                'codigo': codigo,
+                'categoria': categoria,
+                'arquivo_origem': arquivo_origem,
+                'tamanho_nome': tamanho_nome,
+                'quantidade': quantidade
+            })
 
-            tamanho_slug = tamanho_nome.replace(" ", "_").replace("(", "").replace(")", "")
-            nome_destino_pdf = f"ESTAMPA_{codigo}_{tamanho_slug}_QTD{quantidade}.pdf"
-            caminho_destino_pdf = os.path.join(pasta_destino_hotfolder, nome_destino_pdf)
+    total_arquivos = len(lista_tarefas)
 
-            try:
-                print(f"⚙️ Gerando PDF {nome_destino_pdf} (Tamanho: {tamanho_nome} | Cópias: {quantidade} pgs)...")
-                gerar_pdf_multipaginas(arquivo_origem, caminho_destino_pdf, tamanho_nome, quantidade)
-                msg = f"✓ [PDF ENVIADO] {os.path.basename(arquivo_origem)} ➔ {nome_destino_pdf} ({quantidade} pgs)"
-                print(msg)
-                relatorio.append(msg)
-            except Exception as e:
-                msg = f"❌ [ERRO] Falha ao processar {codigo}: {e}"
-                print(msg)
-                relatorio.append(msg)
+    for idx, tarefa in enumerate(lista_tarefas):
+        codigo = tarefa['codigo']
+        arquivo_origem = tarefa['arquivo_origem']
+        tamanho_nome = tarefa['tamanho_nome']
+        quantidade = tarefa['quantidade']
+
+        tamanho_slug = tamanho_nome.replace(" ", "_").replace("(", "").replace(")", "")
+        nome_destino_pdf = f"ESTAMPA_{codigo}_{tamanho_slug}_QTD{quantidade}.pdf"
+        
+        # 1. Caminho na pasta temporária local (escrita 100% segura)
+        caminho_temp_pdf = os.path.join(PASTA_TEMP_LOCAL, nome_destino_pdf)
+        # 2. Caminho final na Hot Folder do VersaWorks
+        caminho_final_hotfolder = os.path.join(pasta_destino_hotfolder, nome_destino_pdf)
+
+        try:
+            print(f"⚙️ [{idx+1}/{total_arquivos}] Processando localmente: {nome_destino_pdf} ({tamanho_nome} | {quantidade} pgs)...")
+            gerar_pdf_multipaginas(arquivo_origem, caminho_temp_pdf, tamanho_nome, quantidade)
+            
+            # Movimento atômico: move o arquivo completo pra Hot Folder em 1 milissegundo
+            if os.path.exists(caminho_final_hotfolder):
+                os.remove(caminho_final_hotfolder)
+            shutil.move(caminho_temp_pdf, caminho_final_hotfolder)
+
+            msg = f"✓ [ENVIADO COM SUCESSO] {os.path.basename(arquivo_origem)} ➔ {nome_destino_pdf} ({quantidade} pgs)"
+            print(msg)
+            relatorio.append(msg)
+
+            # Se houver mais arquivos na fila, aguarda o delay para o VersaWorks não sobrecarregar
+            if idx < total_arquivos - 1:
+                print(f"⏳ Aguardando {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s para o VersaWorks ingerir o arquivo anterior sem travar...")
+                time.sleep(DELAY_ENTRE_ARQUIVOS_SEGUNDOS)
+
+        except Exception as e:
+            msg = f"❌ [ERRO] Falha ao processar {codigo}: {e}"
+            print(msg)
+            relatorio.append(msg)
 
     return relatorio
 
@@ -255,7 +295,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 hot_folder_custom = dados.get('hotfolder', HOT_FOLDER_VERSAWORKS)
 
                 print("\n==========================================")
-                print(f"🖨️ NOVO PEDIDO RECEBIDO DA WEB (CONVERSÃO PDF MÚLTIPLAS PÁGINAS)")
+                print(f"🖨️ NOVO PEDIDO RECEBIDO DA WEB (FILA SEGURA COM DELAY)")
                 print(f"Itens: {len(carrinho)} estampas diferentes")
                 print("==========================================\n")
 
@@ -283,12 +323,13 @@ def iniciar_servidor(porta=5000):
     server_address = ('', porta)
     httpd = HTTPServer(server_address, RequestHandler)
     print(f"==================================================")
-    print(f" Servidor de Impressão Roland VersaWorks (PDF Multi-páginas)")
+    print(f" Servidor de Impressão Roland VersaWorks (Fila Segura)")
     print(f" Endereço: http://localhost:{porta}")
     print(f" Pasta Master: {PASTA_ARTES_MASTER}")
     print(f" Hot Folder Fila B: {HOT_FOLDER_VERSAWORKS}")
     print(f" Resolução Máxima: 150 DPI (Otimizado ultra-leve)")
-    print(f" Redimensionamento Automático: Default, 369mm e 300mm")
+    print(f" Envio Atômico: Pasta Temp ➔ Hot Folder")
+    print(f" Delay de Fila: {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f} segundos entre cada estampa")
     print(f"==================================================")
     print("Aguardando pedidos do site...")
     httpd.serve_forever()
