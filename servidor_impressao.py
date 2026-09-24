@@ -2,12 +2,15 @@
 Servidor de Integração para Fila de Impressão Roland VersaWorks 5
 Empresa: Calegari Sublimação
 
-Recursos:
+Recursos Principais:
 1. Resolução otimizada com teto de 150 DPI para arquivos leves e RIP ultrarrápido.
-2. Ultra-compatibilidade PDF 1.4 (sem Object Streams, fundo branco para transparências, PostScript limpo).
-3. Modo PDF Unificado (ON por padrão): gera 1 ÚNICO arquivo PDF contendo todo o pedido (ex: 8 cópias da estampa 1, 10 da estampa 2, etc.) para que o VersaWorks processe tudo em 1 único Job contínuo.
-4. Modo Arquivos Individuais: se desativado o modo unificado, envia 1 arquivo por tamanho com delay de 30 segundos entre cada estampa.
-5. Envio atômico via pasta temporária local para evitar travamento ou leitura parcial no VersaWorks.
+2. Ultra-compatibilidade PDF 1.4 PostScript (sem Object Streams, fundo branco para transparências).
+3. Orientação Unificada (Landscape com Rotação 0 Absoluta em todas as páginas):
+   - Elimina divergências onde 2 ou 4 páginas ficavam em orientação diferente no VersaWorks.
+   - Quando o operador altera a orientação (Retrato/Paisagem) no RIP, TODAS as páginas giram juntas em sincronia total.
+4. Modo PDF Unificado (ON por padrão): gera 1 ÚNICO arquivo PDF contendo todo o pedido (ex: 8 cópias da estampa 1, 10 da estampa 2, etc.) para que o VersaWorks processe tudo em 1 único Job contínuo.
+5. Modo Arquivos Individuais: se desativado o modo unificado, envia 1 arquivo por estampa com delay de 30 segundos entre cada uma.
+6. Envio atômico via pasta temporária local para evitar leitura parcial ou travamentos no VersaWorks.
 """
 
 import os
@@ -36,6 +39,7 @@ os.makedirs(PASTA_TEMP_LOCAL, exist_ok=True)
 MAX_DPI = 150.0  # Limite máximo de DPI para imagens raster
 DELAY_ENTRE_ARQUIVOS_SEGUNDOS = 30.0  # Delay de 30 segundos para envios individuais
 MODO_PDF_UNIFICADO_PADRAO = True  # Gera 1 PDF único por pedido completo por padrão
+PADRONIZAR_ORIENTACAO_PADRAO = "LANDSCAPE"  # Força orientação unificada (LANDSCAPE) com rotação 0
 
 MAPEAMENTO_PASTAS = {
     "Sublimação Adulta": os.path.join(PASTA_ARTES_MASTER, "Adulto"),
@@ -76,10 +80,13 @@ def buscar_arquivo_arte(categoria, codigo_id):
 
     return None
 
-def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho):
+def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho, padronizar_orientacao=PADRONIZAR_ORIENTACAO_PADRAO):
     """
     Gera um objeto fitz.Document contendo 'quantidade' de páginas da arte redimensionada.
-    Garante fundo branco para transparências e compatibilidade total com o VersaWorks.
+    - Garante fundo branco para transparências.
+    - Força ROTAÇÃO = 0 em 100% das páginas.
+    - Padroniza a orientação física do canvas (LANDSCAPE) para que TODAS as páginas
+      no VersaWorks obedeçam à mesma rotação simultaneamente.
     """
     tamanho_lower = tamanho_nome.lower()
     target_mm = None
@@ -96,42 +103,45 @@ def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho
 
         vis_w = float(page.rect.width)
         vis_h = float(page.rect.height)
-        is_landscape = vis_w >= vis_h
+        is_landscape_vis = vis_w >= vis_h
 
         if target_mm:
             target_pt = target_mm * (72.0 / 25.4)
-            scale = target_pt / vis_w if is_landscape else target_pt / vis_h
+            scale = target_pt / vis_w if is_landscape_vis else target_pt / vis_h
         else:
             scale = 1.0
 
-        orig_rot = page.rotation
-        if orig_rot != 0:
-            page.set_rotation(0)
+        new_w = vis_w * scale
+        new_h = vis_h * scale
 
-        unrot_w = float(page.rect.width)
-        unrot_h = float(page.rect.height)
+        # Padronização de orientação: se for LANDSCAPE e a arte for vertical, ajusta a tela para Landscape com rotation=0
+        if padronizar_orientacao == "LANDSCAPE" and new_w < new_h:
+            final_w, final_h = new_h, new_w
+        elif padronizar_orientacao == "PORTRAIT" and new_w > new_h:
+            final_w, final_h = new_h, new_w
+        else:
+            final_w, final_h = new_w, new_h
 
         new_doc = fitz.open()
-        new_p = new_doc.new_page(width=unrot_w * scale, height=unrot_h * scale)
+        new_p = new_doc.new_page(width=final_w, height=final_h)
+
+        # Renderiza o conteúdo sobre a página com rotação 0 absoluta
         new_p.show_pdf_page(new_p.rect, doc_src, 0)
 
-        if orig_rot != 0:
-            new_p.set_rotation(orig_rot)
-            page.set_rotation(orig_rot)
-
+        # Duplica as páginas para a quantidade de cópias solicitada (todas idênticas com rotation=0)
         for _ in range(quantidade - 1):
             new_doc.fullcopy_page(0)
 
         doc_src.close()
-        w_mm = vis_w * scale * 25.4 / 72.0
-        h_mm = vis_h * scale * 25.4 / 72.0
-        print(f"  ↳ [Vetor PDF] {w_mm:.1f}mm x {h_mm:.1f}mm | {quantidade} pgs")
+        w_mm = final_w * 25.4 / 72.0
+        h_mm = final_h * 25.4 / 72.0
+        print(f"  ↳ [Vetor PDF] {w_mm:.1f}mm x {h_mm:.1f}mm | Rotation=0 | {quantidade} pgs")
         return new_doc
 
     else:
         img_orig = Image.open(caminho_origem)
         orig_w, orig_h = img_orig.size
-        is_landscape = orig_w >= orig_h
+        is_landscape_orig = orig_w >= orig_h
 
         dpi_info = img_orig.info.get('dpi')
         if dpi_info and isinstance(dpi_info, tuple) and len(dpi_info) == 2 and dpi_info[0] > 0:
@@ -144,7 +154,7 @@ def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho
         if target_mm:
             target_in = target_mm / 25.4
             target_pixels = target_in * effective_dpi
-            scale = target_pixels / float(orig_w if is_landscape else orig_h)
+            scale = target_pixels / float(orig_w if is_landscape_orig else orig_h)
             new_w = max(1, int(round(orig_w * scale)))
             new_h = max(1, int(round(orig_h * scale)))
         else:
@@ -164,7 +174,15 @@ def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho
             img_work = img_orig
 
         img_resized = img_work.resize((new_w, new_h), Image.Resampling.LANCZOS)
-        
+
+        # Padronização de orientação da imagem se solicitado (rotaciona 90° se for vertical e o padrão for LANDSCAPE)
+        if padronizar_orientacao == "LANDSCAPE" and new_w < new_h:
+            img_resized = img_resized.rotate(90, expand=True)
+            new_w, new_h = img_resized.size
+        elif padronizar_orientacao == "PORTRAIT" and new_w > new_h:
+            img_resized = img_resized.rotate(90, expand=True)
+            new_w, new_h = img_resized.size
+
         caminho_temp_img = os.path.join(pasta_temp_trabalho, f"temp_{time.time_ns()}.jpg")
         img_resized.save(caminho_temp_img, format='JPEG', quality=92, dpi=(int(effective_dpi), int(effective_dpi)))
         img_orig.close()
@@ -184,7 +202,7 @@ def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho
 
         w_mm = (new_w / effective_dpi) * 25.4
         h_mm = (new_h / effective_dpi) * 25.4
-        print(f"  ↳ [Raster PDF {effective_dpi:.0f}DPI] {w_mm:.1f}mm x {h_mm:.1f}mm | {quantidade} pgs")
+        print(f"  ↳ [Raster PDF {effective_dpi:.0f}DPI] {w_mm:.1f}mm x {h_mm:.1f}mm | Rotation=0 | {quantidade} pgs")
         return new_doc
 
 def salvar_pdf_compativel_versaworks(doc_fitz, caminho_destino):
@@ -203,7 +221,7 @@ def salvar_pdf_compativel_versaworks(doc_fitz, caminho_destino):
         use_objstms=0
     )
 
-def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_unificado=MODO_PDF_UNIFICADO_PADRAO):
+def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_unificado=MODO_PDF_UNIFICADO_PADRAO, padronizar_orientacao=PADRONIZAR_ORIENTACAO_PADRAO):
     """
     Processa o pedido enviado da Web.
     Se modo_unificado == True: gera 1 ÚNICO arquivo PDF contendo todas as estampas e cópias em sequência.
@@ -255,11 +273,11 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_u
 
         for idx, tarefa in enumerate(lista_tarefas):
             print(f"  ⚙️ Item {idx+1}/{len(lista_tarefas)}: Estampa {tarefa['codigo']} ({tarefa['tamanho_nome']} | {tarefa['quantidade']} pgs)")
-            doc_item = gerar_doc_arte(tarefa['arquivo_origem'], tarefa['tamanho_nome'], tarefa['quantidade'], PASTA_TEMP_LOCAL)
+            doc_item = gerar_doc_arte(tarefa['arquivo_origem'], tarefa['tamanho_nome'], tarefa['quantidade'], PASTA_TEMP_LOCAL, padronizar_orientacao)
             pdf_master.insert_pdf(doc_item)
             doc_item.close()
 
-        print(f"  💾 Otimizando e salvando PDF unificado em padrão PDF 1.4 PostScript...")
+        print(f"  💾 Otimizando e salvando PDF unificado em padrão PDF 1.4 PostScript (Rotation=0)...")
         salvar_pdf_compativel_versaworks(pdf_master, caminho_temp_unificado)
         pdf_master.close()
 
@@ -267,7 +285,7 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_u
             os.remove(caminho_final_hotfolder)
         shutil.move(caminho_temp_unificado, caminho_final_hotfolder)
 
-        msg = f"✓ [PDF UNIFICADO ENVIADO] {nome_pdf_unificado} ({total_paginas_pedido} páginas totais em 1 arquivo)"
+        msg = f"✓ [PDF UNIFICADO ENVIADO] {nome_pdf_unificado} ({total_paginas_pedido} páginas em orientação padronizada {padronizar_orientacao})"
         print(msg)
         relatorio.append(msg)
 
@@ -288,7 +306,7 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_u
 
             try:
                 print(f"⚙️ [{idx+1}/{total_arquivos}] Gerando individual: {nome_destino_pdf} ({quantidade} pgs)...")
-                doc_item = gerar_doc_arte(arquivo_origem, tamanho_nome, quantidade, PASTA_TEMP_LOCAL)
+                doc_item = gerar_doc_arte(arquivo_origem, tamanho_nome, quantidade, PASTA_TEMP_LOCAL, padronizar_orientacao)
                 salvar_pdf_compativel_versaworks(doc_item, caminho_temp_pdf)
                 doc_item.close()
 
@@ -301,7 +319,7 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_u
                 relatorio.append(msg)
 
                 if idx < total_arquivos - 1:
-                    print(f"⏳ Aguardando {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s para o VersaWorks ingerir o arquivo anterior...")
+                    print(f"⏳ Aguardando {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s para o VersaWorks ingerir sem sobrecarregar...")
                     time.sleep(DELAY_ENTRE_ARQUIVOS_SEGUNDOS)
 
             except Exception as e:
@@ -332,13 +350,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                 carrinho = dados.get('cart', [])
                 hot_folder_custom = dados.get('hotfolder', HOT_FOLDER_VERSAWORKS)
                 modo_unificado = dados.get('modo_unificado', MODO_PDF_UNIFICADO_PADRAO)
+                padronizar_orientacao = dados.get('padronizar_orientacao', PADRONIZAR_ORIENTACAO_PADRAO)
 
                 print("\n==========================================")
                 print(f"🖨️ NOVO PEDIDO RECEBIDO DA WEB")
-                print(f"Itens: {len(carrinho)} estampas diferentes | Modo Unificado: {modo_unificado}")
+                print(f"Itens: {len(carrinho)} | Modo Unificado: {modo_unificado} | Orientação: {padronizar_orientacao}")
                 print("==========================================\n")
 
-                resultado = enviar_pedido_para_hotfolder(carrinho, hot_folder_custom, modo_unificado)
+                resultado = enviar_pedido_para_hotfolder(carrinho, hot_folder_custom, modo_unificado, padronizar_orientacao)
 
                 self.send_response(200)
                 self._set_cors_headers()
@@ -362,12 +381,13 @@ def iniciar_servidor(porta=5000):
     server_address = ('', porta)
     httpd = HTTPServer(server_address, RequestHandler)
     print(f"==================================================")
-    print(f" Servidor de Impressão Roland VersaWorks 5 (Modo Unificado/PDF 1.4)")
+    print(f" Servidor de Impressão Roland VersaWorks 5 (Orientação Unificada)")
     print(f" Endereço: http://localhost:{porta}")
     print(f" Pasta Master: {PASTA_ARTES_MASTER}")
     print(f" Hot Folder Fila B: {HOT_FOLDER_VERSAWORKS}")
     print(f" Resolução Máxima: 150 DPI (Otimizado ultra-leve)")
     print(f" Compatibilidade PDF: Padrão PDF 1.4 PostScript (No Object Streams, RGB Solid BG)")
+    print(f" Orientação Unificada: {PADRONIZAR_ORIENTACAO_PADRAO} (Rotation 0 em todas as páginas)")
     print(f" Modo PDF Unificado: {'ATIVO' if MODO_PDF_UNIFICADO_PADRAO else 'DESATIVO'}")
     print(f" Delay Envio Individual: {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s")
     print(f"==================================================")
