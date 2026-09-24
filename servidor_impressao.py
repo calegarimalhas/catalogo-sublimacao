@@ -2,12 +2,12 @@
 Servidor de Integração para Fila de Impressão Roland VersaWorks 5
 Empresa: Calegari Sublimação
 
-Este script roda localmente no computador que está conectado à impressora Roland.
-Ele recebe os pedidos do site, converte qualquer arte (.pdf, .jpg, .png, .tif, .eps) para formato PDF,
-ajusta as dimensões físicas (369mm, 300mm ou Default), limita imagens raster a no máximo 150 DPI para otimização,
-replica a quantidade de cópias em PÁGINAS dentro de um ÚNICO arquivo .pdf leve,
-e envia de forma ATÔMICA para a Hot Folder com um DELAY (pausa) de 5 segundos entre cada arquivo
-para evitar travamentos ou congelamentos no RIP da Roland.
+Recursos:
+1. Resolução otimizada com teto de 150 DPI para arquivos leves e RIP ultrarrápido.
+2. Ultra-compatibilidade PDF 1.4 (sem Object Streams, fundo branco para transparências, PostScript limpo).
+3. Modo PDF Unificado (ON por padrão): gera 1 ÚNICO arquivo PDF contendo todo o pedido (ex: 8 cópias da estampa 1, 10 da estampa 2, etc.) para que o VersaWorks processe tudo em 1 único Job contínuo.
+4. Modo Arquivos Individuais: se desativado o modo unificado, envia 1 arquivo por tamanho com delay de 30 segundos entre cada estampa.
+5. Envio atômico via pasta temporária local para evitar travamento ou leitura parcial no VersaWorks.
 """
 
 import os
@@ -16,28 +16,27 @@ import glob
 import json
 import sys
 import time
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-import fitz  # PyMuPDF para gerar e manipular PDFs vetoriais e raster
-from PIL import Image  # Pillow para processamento de imagens
+import fitz  # PyMuPDF
+from PIL import Image  # Pillow
 
 # Garante suporte UTF-8 no terminal
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-# === CONFIGURAÇÃO DE CAMINHOS ===
+# === CONFIGURAÇÃO DE CAMINHOS E PARÂMETROS ===
 PASTA_ARTES_MASTER = r"D:\backup gabriel\SublimaçãoArtes"
-# Hot Folder do VersaWorks 5 (Fila B)
 HOT_FOLDER_VERSAWORKS = r"C:\Program Files (x86)\Roland VersaWorks\VersaWorks\Input-B"
 
-# Pasta Temporária Local (para salvar 100% do PDF antes de mover para a Hot Folder)
 PASTA_TEMP_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_jobs")
 os.makedirs(PASTA_TEMP_LOCAL, exist_ok=True)
 
-MAX_DPI = 150.0  # Limite máximo de DPI para imagens raster ficarem leves no RIP
-DELAY_ENTRE_ARQUIVOS_SEGUNDOS = 5.0  # Pausa em segundos entre o envio de cada arquivo para o VersaWorks
+MAX_DPI = 150.0  # Limite máximo de DPI para imagens raster
+DELAY_ENTRE_ARQUIVOS_SEGUNDOS = 30.0  # Delay de 30 segundos para envios individuais
+MODO_PDF_UNIFICADO_PADRAO = True  # Gera 1 PDF único por pedido completo por padrão
 
-# Mapeamento de categorias do site para pastas físicas
 MAPEAMENTO_PASTAS = {
     "Sublimação Adulta": os.path.join(PASTA_ARTES_MASTER, "Adulto"),
     "Sublimação Infantil": os.path.join(PASTA_ARTES_MASTER, "Infantil"),
@@ -48,10 +47,6 @@ MAPEAMENTO_PASTAS = {
 EXTENSOES_SUPORTADAS = ['.pdf', '.jpg', '.jpeg', '.eps', '.tif', '.png']
 
 def buscar_arquivo_arte(categoria, codigo_id):
-    """
-    Busca o arquivo de alta resolução correspondente ao código.
-    Prioriza .pdf (para vetor e cores exatas), seguido por .jpg / .jpeg / .png / .tif.
-    """
     pasta_cat = MAPEAMENTO_PASTAS.get(categoria)
     if not pasta_cat or not os.path.exists(pasta_cat):
         print(f"⚠️ Pasta de categoria não encontrada: {pasta_cat}")
@@ -81,13 +76,10 @@ def buscar_arquivo_arte(categoria, codigo_id):
 
     return None
 
-def gerar_pdf_multipaginas(caminho_origem, caminho_destino_pdf, tamanho_nome, quantidade):
+def gerar_doc_arte(caminho_origem, tamanho_nome, quantidade, pasta_temp_trabalho):
     """
-    Converte qualquer arte (.pdf, .jpg, .png, etc) para um PDF único com a quantidade
-    de cópias representadas em PÁGINAS.
-    - Redimensiona para a dimensão física alvo (369mm, 300mm ou Default).
-    - Limita imagens raster a no máximo 150 DPI para otimização de velocidade no RIP.
-    - Duplica as páginas internamente no PDF sem inflar o tamanho do arquivo.
+    Gera um objeto fitz.Document contendo 'quantidade' de páginas da arte redimensionada.
+    Garante fundo branco para transparências e compatibilidade total com o VersaWorks.
     """
     tamanho_lower = tamanho_nome.lower()
     target_mm = None
@@ -119,28 +111,23 @@ def gerar_pdf_multipaginas(caminho_origem, caminho_destino_pdf, tamanho_nome, qu
         unrot_w = float(page.rect.width)
         unrot_h = float(page.rect.height)
 
-        new_unrot_w = unrot_w * scale
-        new_unrot_h = unrot_h * scale
-
         new_doc = fitz.open()
-        new_p = new_doc.new_page(width=new_unrot_w, height=new_unrot_h)
+        new_p = new_doc.new_page(width=unrot_w * scale, height=unrot_h * scale)
         new_p.show_pdf_page(new_p.rect, doc_src, 0)
 
         if orig_rot != 0:
             new_p.set_rotation(orig_rot)
             page.set_rotation(orig_rot)
 
-        # Duplica as páginas para a quantidade de cópias desejada
         for _ in range(quantidade - 1):
             new_doc.fullcopy_page(0)
 
-        new_doc.save(caminho_destino_pdf, deflate=True)
-        new_doc.close()
         doc_src.close()
-
         w_mm = vis_w * scale * 25.4 / 72.0
         h_mm = vis_h * scale * 25.4 / 72.0
-        print(f"  ↳ [PDF Vetor -> PDF] {w_mm:.1f}mm x {h_mm:.1f}mm | {quantidade} página(s)")
+        print(f"  ↳ [Vetor PDF] {w_mm:.1f}mm x {h_mm:.1f}mm | {quantidade} pgs")
+        return new_doc
+
     else:
         img_orig = Image.open(caminho_origem)
         orig_w, orig_h = img_orig.size
@@ -165,15 +152,21 @@ def gerar_pdf_multipaginas(caminho_origem, caminho_destino_pdf, tamanho_nome, qu
             new_w = max(1, int(round(orig_w * scale)))
             new_h = max(1, int(round(orig_h * scale)))
 
-        if img_orig.mode != 'RGB':
+        # Trata transparência convertendo para fundo branco RGB (evita tela preta no PostScript VersaWorks)
+        if img_orig.mode in ('RGBA', 'LA') or (img_orig.mode == 'P' and 'transparency' in img_orig.info):
+            bg = Image.new('RGB', img_orig.size, (255, 255, 255))
+            img_rgba = img_orig.convert('RGBA')
+            bg.paste(img_rgba, mask=img_rgba.split()[3])
+            img_work = bg
+        elif img_orig.mode != 'RGB':
             img_work = img_orig.convert('RGB')
         else:
             img_work = img_orig
 
         img_resized = img_work.resize((new_w, new_h), Image.Resampling.LANCZOS)
         
-        caminho_temp_img = caminho_destino_pdf + ".temp.jpg"
-        img_resized.save(caminho_temp_img, format='JPEG', quality=90, dpi=(int(effective_dpi), int(effective_dpi)))
+        caminho_temp_img = os.path.join(pasta_temp_trabalho, f"temp_{time.time_ns()}.jpg")
+        img_resized.save(caminho_temp_img, format='JPEG', quality=92, dpi=(int(effective_dpi), int(effective_dpi)))
         img_orig.close()
 
         pdf_w = (new_w / effective_dpi) * 72.0
@@ -186,21 +179,35 @@ def gerar_pdf_multipaginas(caminho_origem, caminho_destino_pdf, tamanho_nome, qu
         for _ in range(quantidade - 1):
             new_doc.fullcopy_page(0)
 
-        new_doc.save(caminho_destino_pdf, deflate=True)
-        new_doc.close()
-
         if os.path.exists(caminho_temp_img):
             os.remove(caminho_temp_img)
 
         w_mm = (new_w / effective_dpi) * 25.4
         h_mm = (new_h / effective_dpi) * 25.4
-        print(f"  ↳ [Imagem -> PDF {effective_dpi:.0f}DPI] {w_mm:.1f}mm x {h_mm:.1f}mm | {quantidade} página(s)")
+        print(f"  ↳ [Raster PDF {effective_dpi:.0f}DPI] {w_mm:.1f}mm x {h_mm:.1f}mm | {quantidade} pgs")
+        return new_doc
 
-def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
+def salvar_pdf_compativel_versaworks(doc_fitz, caminho_destino):
     """
-    Processa o pedido e envia 1 ÚNICO arquivo .pdf por tamanho selecionado para a Hot Folder.
-    - O arquivo é primeiramente salvo em uma pasta temporária e depois MOVIDO instantaneamente (atômico) para a Hot Folder.
-    - Aplica uma pausa (delay) de 5 segundos entre cada arquivo para que o Roland VersaWorks processe suavemente.
+    Salva o documento PDF com compatibilidade total VersaWorks 5:
+    - Garbage collection completo de objetos não utilizados
+    - Syntax clean e recompressão
+    - use_objstms=0 (desativa Object Streams para garantir padrão PDF 1.4 PostScript)
+    """
+    doc_fitz.save(
+        caminho_destino,
+        garbage=4,
+        clean=True,
+        deflate=True,
+        deflate_images=True,
+        use_objstms=0
+    )
+
+def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder, modo_unificado=MODO_PDF_UNIFICADO_PADRAO):
+    """
+    Processa o pedido enviado da Web.
+    Se modo_unificado == True: gera 1 ÚNICO arquivo PDF contendo todas as estampas e cópias em sequência.
+    Se modo_unificado == False: envia 1 arquivo individual por item com delay de 30 segundos entre cada.
     """
     if not os.path.exists(pasta_destino_hotfolder):
         os.makedirs(pasta_destino_hotfolder, exist_ok=True)
@@ -208,7 +215,6 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
     relatorio = []
     lista_tarefas = []
 
-    # Monta a lista completa de arquivos a serem gerados
     for item in itens_carrinho:
         codigo = item.get('id')
         categoria = item.get('category')
@@ -232,44 +238,76 @@ def enviar_pedido_para_hotfolder(itens_carrinho, pasta_destino_hotfolder):
                 'quantidade': quantidade
             })
 
-    total_arquivos = len(lista_tarefas)
+    if not lista_tarefas:
+        return relatorio
 
-    for idx, tarefa in enumerate(lista_tarefas):
-        codigo = tarefa['codigo']
-        arquivo_origem = tarefa['arquivo_origem']
-        tamanho_nome = tarefa['tamanho_nome']
-        quantidade = tarefa['quantidade']
+    if modo_unificado:
+        # === MODO 1: PDF UNIFICADO POR PEDIDO (1 ÚNICO ARQUIVO COM TODAS AS PÁGINAS) ===
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        total_paginas_pedido = sum(t['quantidade'] for t in lista_tarefas)
+        nome_pdf_unificado = f"PEDIDO_UNIFICADO_{timestamp_str}_TOTAL{total_paginas_pedido}PAGS.pdf"
+        caminho_temp_unificado = os.path.join(PASTA_TEMP_LOCAL, nome_pdf_unificado)
+        caminho_final_hotfolder = os.path.join(pasta_destino_hotfolder, nome_pdf_unificado)
 
-        tamanho_slug = tamanho_nome.replace(" ", "_").replace("(", "").replace(")", "")
-        nome_destino_pdf = f"ESTAMPA_{codigo}_{tamanho_slug}_QTD{quantidade}.pdf"
+        print(f"📦 [MODO PDF UNIFICADO] Criando arquivo único para o pedido ({len(lista_tarefas)} itens / {total_paginas_pedido} páginas totais)...")
         
-        # 1. Caminho na pasta temporária local (escrita 100% segura)
-        caminho_temp_pdf = os.path.join(PASTA_TEMP_LOCAL, nome_destino_pdf)
-        # 2. Caminho final na Hot Folder do VersaWorks
-        caminho_final_hotfolder = os.path.join(pasta_destino_hotfolder, nome_destino_pdf)
+        pdf_master = fitz.open()
 
-        try:
-            print(f"⚙️ [{idx+1}/{total_arquivos}] Processando localmente: {nome_destino_pdf} ({tamanho_nome} | {quantidade} pgs)...")
-            gerar_pdf_multipaginas(arquivo_origem, caminho_temp_pdf, tamanho_nome, quantidade)
+        for idx, tarefa in enumerate(lista_tarefas):
+            print(f"  ⚙️ Item {idx+1}/{len(lista_tarefas)}: Estampa {tarefa['codigo']} ({tarefa['tamanho_nome']} | {tarefa['quantidade']} pgs)")
+            doc_item = gerar_doc_arte(tarefa['arquivo_origem'], tarefa['tamanho_nome'], tarefa['quantidade'], PASTA_TEMP_LOCAL)
+            pdf_master.insert_pdf(doc_item)
+            doc_item.close()
+
+        print(f"  💾 Otimizando e salvando PDF unificado em padrão PDF 1.4 PostScript...")
+        salvar_pdf_compativel_versaworks(pdf_master, caminho_temp_unificado)
+        pdf_master.close()
+
+        if os.path.exists(caminho_final_hotfolder):
+            os.remove(caminho_final_hotfolder)
+        shutil.move(caminho_temp_unificado, caminho_final_hotfolder)
+
+        msg = f"✓ [PDF UNIFICADO ENVIADO] {nome_pdf_unificado} ({total_paginas_pedido} páginas totais em 1 arquivo)"
+        print(msg)
+        relatorio.append(msg)
+
+    else:
+        # === MODO 2: ARQUIVOS INDIVIDUAIS COM DELAY DE 30 SEGUNDOS ===
+        total_arquivos = len(lista_tarefas)
+        for idx, tarefa in enumerate(lista_tarefas):
+            codigo = tarefa['codigo']
+            arquivo_origem = tarefa['arquivo_origem']
+            tamanho_nome = tarefa['tamanho_nome']
+            quantidade = tarefa['quantidade']
+
+            tamanho_slug = tamanho_nome.replace(" ", "_").replace("(", "").replace(")", "")
+            nome_destino_pdf = f"ESTAMPA_{codigo}_{tamanho_slug}_QTD{quantidade}.pdf"
             
-            # Movimento atômico: move o arquivo completo pra Hot Folder em 1 milissegundo
-            if os.path.exists(caminho_final_hotfolder):
-                os.remove(caminho_final_hotfolder)
-            shutil.move(caminho_temp_pdf, caminho_final_hotfolder)
+            caminho_temp_pdf = os.path.join(PASTA_TEMP_LOCAL, nome_destino_pdf)
+            caminho_final_hotfolder = os.path.join(pasta_destino_hotfolder, nome_destino_pdf)
 
-            msg = f"✓ [ENVIADO COM SUCESSO] {os.path.basename(arquivo_origem)} ➔ {nome_destino_pdf} ({quantidade} pgs)"
-            print(msg)
-            relatorio.append(msg)
+            try:
+                print(f"⚙️ [{idx+1}/{total_arquivos}] Gerando individual: {nome_destino_pdf} ({quantidade} pgs)...")
+                doc_item = gerar_doc_arte(arquivo_origem, tamanho_nome, quantidade, PASTA_TEMP_LOCAL)
+                salvar_pdf_compativel_versaworks(doc_item, caminho_temp_pdf)
+                doc_item.close()
 
-            # Se houver mais arquivos na fila, aguarda o delay para o VersaWorks não sobrecarregar
-            if idx < total_arquivos - 1:
-                print(f"⏳ Aguardando {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s para o VersaWorks ingerir o arquivo anterior sem travar...")
-                time.sleep(DELAY_ENTRE_ARQUIVOS_SEGUNDOS)
+                if os.path.exists(caminho_final_hotfolder):
+                    os.remove(caminho_final_hotfolder)
+                shutil.move(caminho_temp_pdf, caminho_final_hotfolder)
 
-        except Exception as e:
-            msg = f"❌ [ERRO] Falha ao processar {codigo}: {e}"
-            print(msg)
-            relatorio.append(msg)
+                msg = f"✓ [ENVIADO INDIVIDUAL] {os.path.basename(arquivo_origem)} ➔ {nome_destino_pdf}"
+                print(msg)
+                relatorio.append(msg)
+
+                if idx < total_arquivos - 1:
+                    print(f"⏳ Aguardando {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s para o VersaWorks ingerir o arquivo anterior...")
+                    time.sleep(DELAY_ENTRE_ARQUIVOS_SEGUNDOS)
+
+            except Exception as e:
+                msg = f"❌ [ERRO] Falha ao processar {codigo}: {e}"
+                print(msg)
+                relatorio.append(msg)
 
     return relatorio
 
@@ -293,13 +331,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                 dados = json.loads(body.decode('utf-8'))
                 carrinho = dados.get('cart', [])
                 hot_folder_custom = dados.get('hotfolder', HOT_FOLDER_VERSAWORKS)
+                modo_unificado = dados.get('modo_unificado', MODO_PDF_UNIFICADO_PADRAO)
 
                 print("\n==========================================")
-                print(f"🖨️ NOVO PEDIDO RECEBIDO DA WEB (FILA SEGURA COM DELAY)")
-                print(f"Itens: {len(carrinho)} estampas diferentes")
+                print(f"🖨️ NOVO PEDIDO RECEBIDO DA WEB")
+                print(f"Itens: {len(carrinho)} estampas diferentes | Modo Unificado: {modo_unificado}")
                 print("==========================================\n")
 
-                resultado = enviar_pedido_para_hotfolder(carrinho, hot_folder_custom)
+                resultado = enviar_pedido_para_hotfolder(carrinho, hot_folder_custom, modo_unificado)
 
                 self.send_response(200)
                 self._set_cors_headers()
@@ -323,13 +362,14 @@ def iniciar_servidor(porta=5000):
     server_address = ('', porta)
     httpd = HTTPServer(server_address, RequestHandler)
     print(f"==================================================")
-    print(f" Servidor de Impressão Roland VersaWorks (Fila Segura)")
+    print(f" Servidor de Impressão Roland VersaWorks 5 (Modo Unificado/PDF 1.4)")
     print(f" Endereço: http://localhost:{porta}")
     print(f" Pasta Master: {PASTA_ARTES_MASTER}")
     print(f" Hot Folder Fila B: {HOT_FOLDER_VERSAWORKS}")
     print(f" Resolução Máxima: 150 DPI (Otimizado ultra-leve)")
-    print(f" Envio Atômico: Pasta Temp ➔ Hot Folder")
-    print(f" Delay de Fila: {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f} segundos entre cada estampa")
+    print(f" Compatibilidade PDF: Padrão PDF 1.4 PostScript (No Object Streams, RGB Solid BG)")
+    print(f" Modo PDF Unificado: {'ATIVO' if MODO_PDF_UNIFICADO_PADRAO else 'DESATIVO'}")
+    print(f" Delay Envio Individual: {DELAY_ENTRE_ARQUIVOS_SEGUNDOS:.0f}s")
     print(f"==================================================")
     print("Aguardando pedidos do site...")
     httpd.serve_forever()
