@@ -106,7 +106,7 @@ const TABELA_PRECOS = {
             "produto": "Body Estampado",
             "publico": "Unissex/Geral",
             "tamanhos": "P ao GG",
-            "preco": 15.10
+            "preco": 12.00
           }
         ]
       },
@@ -214,7 +214,7 @@ function getItemUnitPrice(item) {
 
     // 9. Body (Body Estampado)
     if (cat.includes('Body')) {
-        return 15.10;
+        return 12.00;
     }
 
     // 10. DTF ADULTO
@@ -235,7 +235,7 @@ function getItemUnitPrice(item) {
 
     // Fallbacks inteligentes baseados em palavras-chave
     const catLower = cat.toLowerCase();
-    if (catLower.includes('body')) return 15.10;
+    if (catLower.includes('body')) return 12.00;
     if (catLower.includes('frente total')) return 24.50;
     if (catLower.includes('baby look selo')) return 22.40;
     if (catLower.includes('visco') && catLower.includes('infantil')) return 14.60;
