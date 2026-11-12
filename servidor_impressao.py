@@ -369,7 +369,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-def iniciar_servidor(porta=5000):
+def iniciar_servidor(porta=5050):
     server_address = ('', porta)
     httpd = HTTPServer(server_address, RequestHandler)
     print(f"==================================================")

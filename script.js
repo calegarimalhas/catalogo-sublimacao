@@ -532,7 +532,7 @@ function enviarParaHotFolderLocal() {
 
     showToast("Envio iniciado para o servidor da impressora...");
 
-    fetch('http://localhost:5000/enviar-impressao', {
+    fetch('http://localhost:5050/enviar-impressao', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cart: cart })
@@ -547,7 +547,7 @@ function enviarParaHotFolderLocal() {
         }
     })
     .catch(err => {
-        alert("⚠️ Não foi possível conectar ao servidor de impressão em http://localhost:5000.\n\nCertifique-se de que o script 'servidor_impressao.py' está rodando no computador da impressora!");
+        alert("⚠️ Não foi possível conectar ao servidor de impressão em http://localhost:5050.\n\nCertifique-se de que o script 'servidor_impressao.py' está rodando no computador da impressora!");
     });
 }
 
