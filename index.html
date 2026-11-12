@@ -18,15 +18,18 @@
     <meta property="og:image" content="preview.jpg">
     <meta property="og:site_name" content="Calegari Sublimação">
 
-    <link rel="stylesheet" href="styles.css?v=1">
+    <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
     <header>
         <div class="header-content">
             <h1>Calegari Sublimação</h1>
             <div class="header-right">
+                <button class="import-btn" onclick="openImportModal()" title="Importar pedido do WhatsApp">
+                    <span class="import-icon">📥</span> <span class="import-text">Importar Pedido</span>
+                </button>
                 <button class="help-btn" onclick="openHelpModal()" title="Como fazer seu pedido">
-                    <span class="help-icon">❓</span> Como Pedir
+                    <span class="help-icon">❓</span> <span class="help-text">Como Pedir</span>
                 </button>
                 <div class="cart-icon" onclick="toggleCart()" title="Ver sacola de pedidos">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" width="16" height="16" fill="currentColor" style="vertical-align: middle;"><path d="M0 24C0 10.7 10.7 0 24 0H69.5c22 0 41.5 12.8 50.6 32h411c26.3 0 45.5 25 38.6 50.4l-41 152.3c-8.5 31.4-37 53.3-69.5 53.3H170.7l5.4 28.5c2.2 11.3 12.1 19.5 23.6 19.5H488c13.3 0 24 10.7 24 24s-10.7 24-24 24H199.7c-34.6 0-64.3-24.6-70.7-58.5L77.4 54.5c-.7-3.8-4-6.5-7.9-6.5H24C10.7 48 0 37.3 0 24zM128 464a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zm336-48a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/></svg>
@@ -61,6 +64,9 @@
     <main id="catalog-container">
         <!-- O grid de imagens será gerado via JS -->
     </main>
+
+    <!-- Controles de Paginação -->
+    <div id="pagination-container" class="pagination-container"></div>
 
     <!-- Modal do Produto -->
     <div id="product-modal" class="modal">
@@ -160,15 +166,26 @@
             <h2>Seu Pedido de Sublimação</h2>
             <button class="close-cart" onclick="toggleCart()">&times;</button>
         </div>
+        <div class="cart-quick-actions">
+            <button class="cart-quick-import-btn" onclick="openImportModal()">
+                <span>📥</span> Colar / Importar Pedido do WhatsApp
+            </button>
+        </div>
         <div id="cart-items" class="cart-items">
             <!-- Itens do carrinho -->
-            <div class="empty-cart-message">Seu carrinho está vazio.</div>
+            <div class="empty-cart-message">
+                <p>Seu carrinho está vazio.</p>
+                <button class="empty-cart-import-btn" onclick="openImportModal()">📥 Importar Pedido do WhatsApp</button>
+            </div>
         </div>
         <div class="cart-footer">
             <div id="cart-summary" class="cart-summary" style="display: none;">
                 <div class="cart-summary-row">
                     <span>Total de impressões:</span>
                     <strong id="cart-summary-pieces">0</strong>
+                </div>
+                <div style="text-align: right; margin-top: 6px;">
+                    <button class="clear-cart-btn" onclick="clearCart()">🗑️ Esvaziar carrinho</button>
                 </div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -202,11 +219,55 @@
         </div>
     </div>
 
+    <!-- Modal de Importação de Pedido -->
+    <div id="import-modal" class="modal" onclick="if(event.target===this) closeImportModal()">
+        <div class="modal-content import-modal-content">
+            <span class="close-btn" onclick="closeImportModal()">&times;</span>
+            <div class="import-modal-body">
+                <div class="import-modal-header">
+                    <h2>📥 Importar Pedido do WhatsApp</h2>
+                    <p>Cole abaixo o texto do pedido enviado pelo cliente. Os itens serão processados e adicionados ao carrinho para você enviar direto pra Roland Hot Folder!</p>
+                </div>
+                
+                <div class="import-textarea-wrapper">
+                    <textarea id="import-order-text" oninput="onImportTextInput()" placeholder="Cole a mensagem do WhatsApp aqui... Exemplo:
+
+*PEDIDO DE SUBLIMAÇÃO - CALEGARI*
+----------------------------------
+*Estampa: 0001* (Sublimação Adulta)
+  • Default (Original): 2 unid.
+  • 369mm (Largura): 5 unid.
+..."></textarea>
+                </div>
+
+                <div id="import-preview-box" class="import-preview-box" style="display: none;">
+                    <div class="preview-header">
+                        <strong id="import-preview-title">Itens Identificados:</strong>
+                        <span id="import-preview-count" class="preview-count-badge">0 itens</span>
+                    </div>
+                    <div id="import-preview-list" class="import-preview-list"></div>
+                </div>
+
+                <div class="import-modal-actions">
+                    <button class="import-action-btn import-btn-primary" onclick="confirmImportOrder('replace')" id="btn-import-replace" disabled>
+                        📥 Importar e Substituir Carrinho
+                    </button>
+                    <button class="import-action-btn import-btn-secondary" onclick="confirmImportOrder('append')" id="btn-import-append" disabled>
+                        ➕ Adicionar ao Carrinho Atual
+                    </button>
+                    <button class="import-action-btn import-btn-cancel" onclick="closeImportModal()">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast de Feedback -->
     <div id="toast-container" class="toast-container"></div>
 
     <script src="tabela_precos.js?v=1"></script>
     <script src="dados.js?v=1"></script>
-    <script src="script.js?v=1"></script>
+    <script src="script.js?v=2"></script>
 </body>
 </html>

@@ -1156,3 +1156,408 @@ button, input, .variant-option, .color-option, .print-color-option, .close-btn, 
     font-weight: bold !important;
 }
 
+
+
+/* ========================================================
+   Botão de Importar no Cabeçalho e Carrinho
+   ======================================================== */
+.import-btn {
+    background: rgba(255, 255, 255, 0.22);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition);
+}
+
+.import-btn:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: scale(1.05);
+}
+
+.cart-quick-actions {
+    padding: 10px 15px;
+    background: #eef4fc;
+    border-bottom: 1px solid #dce7f5;
+}
+
+.cart-quick-import-btn {
+    width: 100%;
+    background: #ffffff;
+    border: 1.5px dashed var(--primary-color);
+    color: var(--primary-color);
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.cart-quick-import-btn:hover {
+    background: var(--primary-color);
+    color: #ffffff;
+    border-style: solid;
+}
+
+.empty-cart-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    padding: 30px 15px;
+}
+
+.empty-cart-import-btn {
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.empty-cart-import-btn:hover {
+    background: var(--primary-light);
+    transform: scale(1.02);
+}
+
+.clear-cart-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px;
+}
+
+.clear-cart-btn:hover {
+    color: #a71d2a;
+}
+
+/* ========================================================
+   Paginação das Estampas
+   ======================================================== */
+.pagination-container {
+    max-width: 1200px;
+    margin: 35px auto 25px auto;
+    padding: 0 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.pagination-info {
+    font-size: 0.92rem;
+    color: #555555;
+    text-align: center;
+}
+
+.pagination-info strong {
+    color: var(--primary-color);
+}
+
+.pagination-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.page-btn {
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    color: #24292f;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--primary-light);
+    color: #ffffff;
+    border-color: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.25);
+}
+
+.page-btn.active {
+    background: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+    font-weight: 800;
+    box-shadow: 0 3px 8px rgba(11, 74, 153, 0.35);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f1f3f5;
+    border-color: #e0e0e0;
+}
+
+.page-nav-btn {
+    padding: 0 12px;
+}
+
+.page-ellipsis {
+    padding: 0 8px;
+    font-weight: 700;
+    color: #888888;
+    user-select: none;
+}
+
+.pagination-per-page {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.pagination-per-page select {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* ========================================================
+   Modal de Importar Pedido do WhatsApp
+   ======================================================== */
+.import-modal-content {
+    max-width: 650px;
+    max-height: 90vh;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.import-modal-header h2 {
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    margin-bottom: 6px;
+}
+
+.import-modal-header p {
+    font-size: 0.88rem;
+    color: #666;
+    line-height: 1.4;
+    margin-bottom: 15px;
+}
+
+.import-textarea-wrapper textarea {
+    width: 100%;
+    height: 140px;
+    padding: 12px;
+    border: 1.5px solid #d0d7de;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    resize: vertical;
+    transition: border-color 0.2s;
+    background: #fafbfc;
+}
+
+.import-textarea-wrapper textarea:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+.import-preview-box {
+    margin-top: 15px;
+    background: #f8faff;
+    border: 1.5px solid #dce7f5;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+.preview-count-badge {
+    background: var(--primary-color);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+}
+
+.import-preview-list {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.import-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #ffffff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #e1e8ed;
+}
+
+.import-preview-item img {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #eee;
+    flex-shrink: 0;
+}
+
+.import-preview-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.import-preview-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.import-preview-item-header strong {
+    font-size: 0.95rem;
+    color: #222;
+}
+
+.preview-cat-tag {
+    font-size: 0.75rem;
+    color: #666;
+    background: #eef2f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.preview-sizes-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.preview-size-badge {
+    font-size: 0.78rem;
+    background: #f1f5f9;
+    color: #334155;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.preview-item-total {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.import-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+@media (min-width: 540px) {
+    .import-modal-actions {
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+}
+
+.import-action-btn {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+}
+
+.import-btn-primary {
+    background: #198754;
+    color: #ffffff;
+}
+
+.import-btn-primary:hover:not(:disabled) {
+    background: #157347;
+}
+
+.import-btn-secondary {
+    background: var(--primary-color);
+    color: #ffffff;
+}
+
+.import-btn-secondary:hover:not(:disabled) {
+    background: var(--primary-light);
+}
+
+.import-btn-cancel {
+    background: #f1f3f5;
+    color: #495057;
+}
+
+.import-btn-cancel:hover {
+    background: #e9ecef;
+}
+
+.import-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (max-width: 540px) {
+    .help-btn span.help-text, .import-btn span.import-text {
+        display: none;
+    }
+    .help-btn, .import-btn {
+        padding: 6px 10px;
+    }
+}

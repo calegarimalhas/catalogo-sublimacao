@@ -1,6 +1,8 @@
 // Estado da Aplicação
 let currentCategory = '';
 let currentSubFilter = 'Todos';
+let currentPage = 1;
+let itemsPerPage = 40;
 let cart = JSON.parse(localStorage.getItem('calegari_sublimacao_cart')) || [];
 
 function saveCart() {
@@ -95,6 +97,7 @@ function renderSubFilters(category) {
     btnTodos.innerText = 'Todos';
     btnTodos.onclick = () => {
         currentSubFilter = 'Todos';
+        currentPage = 1;
         renderSubFilters(category);
         renderCatalog(category);
     };
@@ -106,6 +109,7 @@ function renderSubFilters(category) {
         btn.innerText = tema;
         btn.onclick = () => {
             currentSubFilter = tema;
+            currentPage = 1;
             renderSubFilters(category);
             renderCatalog(category);
         };
@@ -125,6 +129,7 @@ function renderTabs(categories) {
             btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             currentCategory = cat;
             currentSubFilter = 'Todos';
+            currentPage = 1;
             renderSubFilters(cat);
             renderCatalog(cat);
             setTimeout(updateTabsArrows, 300);
@@ -138,23 +143,151 @@ function renderCatalog(category) {
     catalogContainer.innerHTML = '';
     let items = catalogo[category] || [];
     
-    if (items.length === 0) {
+    const totalItems = items.length;
+    if (totalItems === 0) {
         catalogContainer.innerHTML = '<p style="text-align:center;width:100%;padding:40px;color:#666;">Nenhuma estampa encontrada.</p>';
+        renderPagination(0, 0);
         return;
     }
+
+    const totalPages = itemsPerPage >= 9999 ? 1 : Math.ceil(totalItems / itemsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const pageItems = items.slice(startIndex, endIndex);
     
-    items.forEach((item, index) => {
+    pageItems.forEach((item, index) => {
         const card = document.createElement('div');
         card.className = 'card';
         card.onclick = () => openModal(item);
         
-        let loadingAttr = index < 4 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"';
+        let loadingAttr = index < 6 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"';
         card.innerHTML = `
             <img src="${item.thumb || item.image}" alt="Estampa ${item.id}" ${loadingAttr}>
             <div class="codigo">${item.id}</div>
         `;
         catalogContainer.appendChild(card);
     });
+
+    renderPagination(totalItems, totalPages);
+}
+
+function renderPagination(totalItems, totalPages) {
+    const container = document.getElementById('pagination-container');
+    if (!container) return;
+
+    if (totalItems === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'flex';
+
+    if (totalPages <= 1) {
+        container.innerHTML = `
+            <div class="pagination-info">
+                Mostrando todas as <strong>${totalItems}</strong> estampas
+            </div>
+            <div class="pagination-per-page">
+                <label for="items-per-page-select">Estampas por página:</label>
+                <select id="items-per-page-select" onchange="changeItemsPerPage(this.value)">
+                    <option value="30" ${itemsPerPage === 30 ? 'selected' : ''}>30</option>
+                    <option value="40" ${itemsPerPage === 40 ? 'selected' : ''}>40 (Padrão)</option>
+                    <option value="60" ${itemsPerPage === 60 ? 'selected' : ''}>60</option>
+                    <option value="100" ${itemsPerPage === 100 ? 'selected' : ''}>100</option>
+                    <option value="9999" ${itemsPerPage >= 9999 ? 'selected' : ''}>Todas</option>
+                </select>
+            </div>
+        `;
+        return;
+    }
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+
+    let html = `
+        <div class="pagination-info">
+            Mostrando estampas <strong>${startIndex + 1}</strong> a <strong>${endIndex}</strong> de <strong>${totalItems}</strong> (Página <strong>${currentPage}</strong> de <strong>${totalPages}</strong>)
+        </div>
+        <div class="pagination-nav">
+            <button class="page-btn page-nav-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''} title="Primeira Página">«</button>
+            <button class="page-btn page-nav-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} title="Página Anterior">‹ Anterior</button>
+    `;
+
+    const range = getPaginationRange(currentPage, totalPages);
+    range.forEach(p => {
+        if (p === '...') {
+            html += `<span class="page-ellipsis">…</span>`;
+        } else {
+            html += `<button class="page-btn page-num-btn ${p === currentPage ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+        }
+    });
+
+    html += `
+            <button class="page-btn page-nav-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} title="Próxima Página">Próxima ›</button>
+            <button class="page-btn page-nav-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} title="Última Página">»</button>
+        </div>
+        <div class="pagination-per-page">
+            <label for="items-per-page-select">Estampas por página:</label>
+            <select id="items-per-page-select" onchange="changeItemsPerPage(this.value)">
+                <option value="30" ${itemsPerPage === 30 ? 'selected' : ''}>30</option>
+                <option value="40" ${itemsPerPage === 40 ? 'selected' : ''}>40 (Padrão)</option>
+                <option value="60" ${itemsPerPage === 60 ? 'selected' : ''}>60</option>
+                <option value="100" ${itemsPerPage === 100 ? 'selected' : ''}>100</option>
+                <option value="9999" ${itemsPerPage >= 9999 ? 'selected' : ''}>Todas</option>
+            </select>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function getPaginationRange(current, total) {
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages = [];
+    pages.push(1);
+
+    if (current > 3) {
+        pages.push('...');
+    }
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+
+    if (current < total - 2) {
+        pages.push('...');
+    }
+
+    pages.push(total);
+    return pages;
+}
+
+function goToPage(pageNum) {
+    currentPage = pageNum;
+    renderCatalog(currentCategory);
+    
+    const catalogEl = document.getElementById('catalog-container');
+    if (catalogEl) {
+        const headerHeight = document.querySelector('header')?.offsetHeight || 130;
+        const topPos = catalogEl.getBoundingClientRect().top + window.pageYOffset - headerHeight - 15;
+        window.scrollTo({ top: Math.max(0, topPos), behavior: 'smooth' });
+    }
+}
+
+function changeItemsPerPage(val) {
+    itemsPerPage = parseInt(val, 10) || 40;
+    currentPage = 1;
+    renderCatalog(currentCategory);
 }
 
 // Lógica do Modal de Produto
@@ -476,3 +609,329 @@ function showToast(text) {
         setTimeout(() => toast.remove(), 300);
     }, 2500);
 }
+
+
+// ========================================================
+// Esvaziar Carrinho
+// ========================================================
+function clearCart() {
+    if (cart.length === 0) return;
+    if (confirm("Tem certeza de que deseja esvaziar todos os itens do carrinho?")) {
+        cart = [];
+        saveCart();
+        updateCartUI();
+        showToast("Carrinho esvaziado!");
+    }
+}
+
+// ========================================================
+// Importar Pedido do WhatsApp
+// ========================================================
+let pendingImportCart = [];
+
+function openImportModal() {
+    const modal = document.getElementById('import-modal');
+    if (!modal) return;
+    
+    const txt = document.getElementById('import-order-text');
+    if (txt) {
+        txt.value = '';
+    }
+    
+    const previewBox = document.getElementById('import-preview-box');
+    if (previewBox) previewBox.style.display = 'none';
+
+    const btnReplace = document.getElementById('btn-import-replace');
+    const btnAppend = document.getElementById('btn-import-append');
+    if (btnReplace) {
+        btnReplace.disabled = true;
+        btnReplace.innerHTML = '📥 Importar e Substituir Carrinho';
+    }
+    if (btnAppend) {
+        btnAppend.disabled = true;
+        btnAppend.innerHTML = '➕ Adicionar ao Carrinho Atual';
+    }
+    
+    pendingImportCart = [];
+
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        if (txt) txt.focus();
+    }, 100);
+}
+
+function closeImportModal() {
+    const modal = document.getElementById('import-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function parseWhatsAppOrder(text) {
+    const lines = text.split(/\r?\n/);
+    const items = [];
+    let currentItem = null;
+
+    for (let rawLine of lines) {
+        let line = rawLine.trim();
+        if (!line) continue;
+
+        const cleanNoMd = line.replace(/[*_~]/g, '').trim();
+
+        // Ignora cabeçalhos globais, rodapés e linhas divisórias
+        if (/^PEDIDO DE SUBLIMA[ÇC][ÃA]O/i.test(cleanNoMd)) continue;
+        if (/^Total de Impress/i.test(cleanNoMd)) continue;
+        if (/^[-=_\*]{3,}$/.test(line)) continue;
+
+        // Reconhecimento de cabeçalho de estampa:
+        // Ex: *Estampa: 0001* (Sublimação Adulta) ou Estampa: 0001 ou Código: 0001 ou Estampa 0001
+        const estampaMatch = cleanNoMd.match(/^(?:Estampa|C[oó]digo|C[oó]d|Arte)\s*:\s*([a-zA-Z0-9_\-]+)(?:\s*\(([^)]+)\))?/i) ||
+                             cleanNoMd.match(/^(?:Estampa|C[oó]digo|C[oó]d|Arte)\s+([a-zA-Z0-9_\-]+)(?:\s*\(([^)]+)\))?/i);
+        
+        if (estampaMatch) {
+            const id = (estampaMatch[1] || '').trim();
+            const category = (estampaMatch[2] || '').trim();
+            if (id) {
+                if (currentItem && Object.keys(currentItem.sizes).length > 0) {
+                    items.push(currentItem);
+                }
+                currentItem = {
+                    id: id,
+                    category: category || null,
+                    sizes: {}
+                };
+                continue;
+            }
+        }
+
+        // Reconhecimento de linha de tamanho e quantidade
+        if (currentItem) {
+            const cleanLine = line.replace(/^[•\-\*\s]+/, '').replace(/[*_~]/g, '').trim();
+            
+            const isSizeLine = /default|original|369|300|\bmm\b/i.test(cleanLine);
+            if (!isSizeLine) continue;
+
+            const qtyMatch = cleanLine.match(/:\s*(\d+)/) || cleanLine.match(/(\d+)\s*(?:unid|unidades|un|pe[çc]as)?$/i);
+            if (qtyMatch) {
+                const qty = parseInt(qtyMatch[1], 10);
+                if (qty > 0) {
+                    let sizeLabel = cleanLine.split(':')[0].trim();
+
+                    if (/default/i.test(sizeLabel) || /original/i.test(sizeLabel)) {
+                        sizeLabel = 'Default (Original)';
+                    } else if (/369/i.test(sizeLabel)) {
+                        if (/altura/i.test(sizeLabel)) {
+                            sizeLabel = '369mm (Altura)';
+                        } else if (/largura/i.test(sizeLabel)) {
+                            sizeLabel = '369mm (Largura)';
+                        } else {
+                            sizeLabel = '369mm (Largura)';
+                        }
+                    } else if (/300/i.test(sizeLabel)) {
+                        if (/altura/i.test(sizeLabel)) {
+                            sizeLabel = '300mm (Altura)';
+                        } else if (/largura/i.test(sizeLabel)) {
+                            sizeLabel = '300mm (Largura)';
+                        } else {
+                            sizeLabel = '300mm (Largura)';
+                        }
+                    }
+                    
+                    currentItem.sizes[sizeLabel] = (currentItem.sizes[sizeLabel] || 0) + qty;
+                }
+            }
+        }
+    }
+
+    if (currentItem && Object.keys(currentItem.sizes).length > 0) {
+        items.push(currentItem);
+    }
+
+    return items;
+}
+
+function findEstampaInCatalogo(rawId, suggestedCategory) {
+    const cleanId = String(rawId).trim().toLowerCase();
+    const cleanNum = parseInt(cleanId, 10);
+
+    function matchItem(item) {
+        if (!item) return false;
+        const itemId = String(item.id).trim().toLowerCase();
+        if (itemId === cleanId) return true;
+        if (!isNaN(cleanNum) && parseInt(itemId, 10) === cleanNum) return true;
+        return false;
+    }
+
+    // 1. Procura na categoria sugerida
+    if (suggestedCategory && catalogo && catalogo[suggestedCategory]) {
+        const found = catalogo[suggestedCategory].find(matchItem);
+        if (found) return { item: found, category: suggestedCategory };
+    }
+
+    // 2. Procura por nome aproximado de categoria
+    if (suggestedCategory && catalogo) {
+        for (const catName of Object.keys(catalogo)) {
+            if (catName.toLowerCase().includes(suggestedCategory.toLowerCase()) ||
+                suggestedCategory.toLowerCase().includes(catName.toLowerCase())) {
+                const found = catalogo[catName].find(matchItem);
+                if (found) return { item: found, category: catName };
+            }
+        }
+    }
+
+    // 3. Procura em todas as categorias do catálogo
+    if (catalogo) {
+        for (const catName of Object.keys(catalogo)) {
+            const found = catalogo[catName].find(matchItem);
+            if (found) return { item: found, category: catName };
+        }
+    }
+
+    // 4. Fallback seguro caso a estampa não conste em dados.js
+    const fallbackCategory = suggestedCategory || (catalogo ? Object.keys(catalogo)[0] : "Sublimação Adulta") || "Sublimação Adulta";
+    const dirCat = fallbackCategory.replace(/\s+/g, '');
+    return {
+        item: {
+            id: rawId,
+            image: `estampas/${dirCat}/${rawId}.webp`,
+            thumb: `estampas/${dirCat}/${rawId}.webp`
+        },
+        category: fallbackCategory
+    };
+}
+
+function onImportTextInput() {
+    const txt = document.getElementById('import-order-text');
+    const previewBox = document.getElementById('import-preview-box');
+    const previewTitle = document.getElementById('import-preview-title');
+    const previewCount = document.getElementById('import-preview-count');
+    const previewList = document.getElementById('import-preview-list');
+    const btnReplace = document.getElementById('btn-import-replace');
+    const btnAppend = document.getElementById('btn-import-append');
+
+    if (!txt || !previewBox || !previewList) return;
+
+    const text = txt.value.trim();
+    if (!text) {
+        previewBox.style.display = 'none';
+        btnReplace.disabled = true;
+        btnAppend.disabled = true;
+        pendingImportCart = [];
+        return;
+    }
+
+    const parsedItems = parseWhatsAppOrder(text);
+
+    if (parsedItems.length === 0) {
+        previewBox.style.display = 'block';
+        previewTitle.innerHTML = `<span style="color:#d9534f;">⚠️ Nenhuma estampa reconhecida</span>`;
+        previewCount.innerText = '0 itens';
+        previewList.innerHTML = `
+            <div style="font-size:0.85rem; color:#666; padding:8px 0; line-height: 1.4;">
+                Não conseguimos identificar estampas válidas.<br>
+                Certifique-se de colar a mensagem no formato:<br>
+                <b>*Estampa: 0001* (Sublimação Adulta)<br>  • Default: 2 unid.</b>
+            </div>
+        `;
+        btnReplace.disabled = true;
+        btnAppend.disabled = true;
+        pendingImportCart = [];
+        return;
+    }
+
+    let totalPieces = 0;
+    pendingImportCart = [];
+    let listHtml = '';
+
+    parsedItems.forEach(pi => {
+        const match = findEstampaInCatalogo(pi.id, pi.category);
+        const resolvedId = match.item.id;
+        const resolvedCategory = match.category;
+        const resolvedImage = match.item.thumb || match.item.image;
+
+        let itemTotalQty = 0;
+        let sizesBadges = '';
+        for (const [sz, qty] of Object.entries(pi.sizes)) {
+            itemTotalQty += qty;
+            totalPieces += qty;
+            sizesBadges += `<span class="preview-size-badge"><b>${sz}:</b> ${qty} unid.</span>`;
+        }
+
+        pendingImportCart.push({
+            id: resolvedId,
+            category: resolvedCategory,
+            image: match.item.image,
+            thumb: resolvedImage,
+            sizes: pi.sizes
+        });
+
+        listHtml += `
+            <div class="import-preview-item">
+                <img src="${resolvedImage}" alt="Estampa ${resolvedId}" onerror="this.src='preview.jpg'">
+                <div class="import-preview-item-info">
+                    <div class="import-preview-item-header">
+                        <strong>Estampa ${resolvedId}</strong>
+                        <span class="preview-cat-tag">${resolvedCategory}</span>
+                    </div>
+                    <div class="preview-sizes-list">
+                        ${sizesBadges}
+                    </div>
+                </div>
+                <div class="preview-item-total">
+                    ${itemTotalQty} unid.
+                </div>
+            </div>
+        `;
+    });
+
+    previewBox.style.display = 'block';
+    previewTitle.innerHTML = `✅ Pedido pronto para importar:`;
+    previewCount.innerText = `${pendingImportCart.length} estampa(s) • ${totalPieces} impressão(ões)`;
+    previewList.innerHTML = listHtml;
+
+    btnReplace.disabled = false;
+    btnAppend.disabled = false;
+
+    btnReplace.innerHTML = `📥 Importar e Substituir Carrinho (${totalPieces} impressões)`;
+    btnAppend.innerHTML = `➕ Adicionar ao Carrinho Atual`;
+}
+
+function confirmImportOrder(mode) {
+    if (!pendingImportCart || pendingImportCart.length === 0) return;
+
+    let totalPieces = 0;
+    pendingImportCart.forEach(item => {
+        for (const qty of Object.values(item.sizes)) {
+            totalPieces += qty;
+        }
+    });
+
+    if (mode === 'replace') {
+        cart = JSON.parse(JSON.stringify(pendingImportCart));
+    } else {
+        pendingImportCart.forEach(incomingItem => {
+            const existingIndex = cart.findIndex(i => i.id === incomingItem.id && i.category === incomingItem.category);
+            if (existingIndex > -1) {
+                for (const [sz, qty] of Object.entries(incomingItem.sizes)) {
+                    cart[existingIndex].sizes[sz] = (cart[existingIndex].sizes[sz] || 0) + qty;
+                }
+            } else {
+                cart.push(JSON.parse(JSON.stringify(incomingItem)));
+            }
+        });
+    }
+
+    saveCart();
+    updateCartUI();
+    closeImportModal();
+    showToast(`✅ ${pendingImportCart.length} estampa(s) importada(s) para o carrinho!`);
+    openCart();
+}
+
+// Fechamento com a tecla Esc
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        closeImportModal();
+        closeModal();
+        closeHelpModal();
+        closeZoomModal();
+    }
+});
