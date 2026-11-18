@@ -1,0 +1,5 @@
+@echo off
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5050" ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%a 2>nul
+)
+echo Servidor parado com sucesso.
