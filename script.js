@@ -935,3 +935,210 @@ window.addEventListener('keydown', (event) => {
         closeZoomModal();
     }
 });
+
+
+// ========================================================
+// Upload Único / Estampa Temporária
+// ========================================================
+let pendingUploadFile = null;
+let pendingUploadBase64 = null;
+let isUploadLandscape = true;
+
+function openUploadModal() {
+    const modal = document.getElementById('upload-modal');
+    if (!modal) return;
+
+    // Reseta campos
+    pendingUploadFile = null;
+    pendingUploadBase64 = null;
+    
+    const fileInput = document.getElementById('upload-file-input');
+    if (fileInput) fileInput.value = '';
+
+    const dropzoneContent = document.getElementById('dropzone-content');
+    if (dropzoneContent) dropzoneContent.style.display = 'block';
+
+    const previewArea = document.getElementById('upload-preview-area');
+    if (previewArea) previewArea.style.display = 'none';
+
+    const errMsg = document.getElementById('upload-error-msg');
+    if (errMsg) errMsg.style.display = 'none';
+
+    const btnConfirm = document.getElementById('btn-upload-confirm');
+    if (btnConfirm) btnConfirm.disabled = true;
+
+    ['upload-qty-default', 'upload-qty-369mm', 'upload-qty-300mm'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '0';
+    });
+
+    modal.style.display = 'flex';
+}
+
+function closeUploadModal() {
+    const modal = document.getElementById('upload-modal');
+    if (modal) modal.style.display = 'none';
+    pendingUploadFile = null;
+    pendingUploadBase64 = null;
+}
+
+function onUploadFileSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    handleUploadFile(file);
+}
+
+function handleUploadFile(file) {
+    pendingUploadFile = file;
+
+    const previewArea = document.getElementById('upload-preview-area');
+    const previewImg = document.getElementById('upload-preview-img');
+    const pdfBadge = document.getElementById('upload-pdf-badge');
+    const nameInput = document.getElementById('upload-item-name');
+    const metaSpan = document.getElementById('upload-file-meta');
+    const btnConfirm = document.getElementById('btn-upload-confirm');
+    const errMsg = document.getElementById('upload-error-msg');
+    if (errMsg) errMsg.style.display = 'none';
+
+    const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+    if (nameInput) nameInput.value = baseName;
+
+    const sizeKB = (file.size / 1024).toFixed(1);
+    const sizeStr = file.size > 1024 * 1024 ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : sizeKB + ' KB';
+    if (metaSpan) metaSpan.innerText = `${file.name} (${sizeStr})`;
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        pendingUploadBase64 = e.target.result;
+
+        if (isPdf) {
+            if (previewImg) previewImg.style.display = 'none';
+            if (pdfBadge) pdfBadge.style.display = 'flex';
+            isUploadLandscape = true;
+            updateUploadSizeLabels(true);
+        } else {
+            if (pdfBadge) pdfBadge.style.display = 'none';
+            if (previewImg) {
+                previewImg.style.display = 'block';
+                previewImg.src = pendingUploadBase64;
+            }
+
+            const imgObj = new Image();
+            imgObj.onload = function() {
+                isUploadLandscape = imgObj.width >= imgObj.height;
+                updateUploadSizeLabels(isUploadLandscape);
+            };
+            imgObj.src = pendingUploadBase64;
+        }
+
+        if (previewArea) previewArea.style.display = 'block';
+        if (btnConfirm) btnConfirm.disabled = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+function updateUploadSizeLabels(isLandscape) {
+    const label369 = document.getElementById('label-upload-369mm');
+    const label300 = document.getElementById('label-upload-300mm');
+    if (label369) {
+        label369.innerHTML = `369mm<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '369mm de largura' : '369mm de altura'})</small>`;
+    }
+    if (label300) {
+        label300.innerHTML = `300mm<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '300mm de largura' : '300mm de altura'})</small>`;
+    }
+}
+
+// Suporte para Drag and Drop no Dropzone
+document.addEventListener('DOMContentLoaded', () => {
+    const dropzone = document.getElementById('upload-dropzone');
+    if (!dropzone) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+            handleUploadFile(files[0]);
+        }
+    }, false);
+});
+
+function confirmAddUploadToCart() {
+    if (!pendingUploadFile || !pendingUploadBase64) {
+        alert("Por favor, selecione um arquivo.");
+        return;
+    }
+
+    const qtyDefault = parseInt(document.getElementById('upload-qty-default').value) || 0;
+    const qty369 = parseInt(document.getElementById('upload-qty-369mm').value) || 0;
+    const qty300 = parseInt(document.getElementById('upload-qty-300mm').value) || 0;
+
+    const totalQty = qtyDefault + qty369 + qty300;
+    const errMsg = document.getElementById('upload-error-msg');
+
+    if (totalQty === 0) {
+        if (errMsg) {
+            errMsg.innerText = "Por favor, selecione ao menos uma quantidade para imprimir.";
+            errMsg.style.display = "block";
+        }
+        return;
+    }
+    if (errMsg) errMsg.style.display = 'none';
+
+    const sizesMap = {};
+    if (qtyDefault > 0) {
+        sizesMap['Default (Original)'] = qtyDefault;
+    }
+    if (qty369 > 0) {
+        const dimLabel = isUploadLandscape ? '369mm (Largura)' : '369mm (Altura)';
+        sizesMap[dimLabel] = qty369;
+    }
+    if (qty300 > 0) {
+        const dimLabel = isUploadLandscape ? '300mm (Largura)' : '300mm (Altura)';
+        sizesMap[dimLabel] = qty300;
+    }
+
+    const nameInput = document.getElementById('upload-item-name');
+    const customName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : pendingUploadFile.name;
+
+    const isPdf = pendingUploadFile.type === 'application/pdf' || pendingUploadFile.name.toLowerCase().endsWith('.pdf');
+    // Para PDF gera um placeholder SVG limpo se for miniatura
+    const thumbSrc = isPdf 
+        ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e53935'/><text x='50' y='55' fill='%23ffffff' font-family='Arial' font-size='20' font-weight='bold' text-anchor='middle'>PDF</text></svg>"
+        : pendingUploadBase64;
+
+    const uploadItem = {
+        id: customName,
+        category: 'Upload Único (Temporário)',
+        fileName: pendingUploadFile.name,
+        fileData: pendingUploadBase64,
+        image: thumbSrc,
+        thumb: thumbSrc,
+        sizes: sizesMap,
+        isCustomUpload: true
+    };
+
+    cart.push(uploadItem);
+    saveCart();
+    updateCartUI();
+    closeUploadModal();
+    showToast(`✅ Estampa "${customName}" adicionada ao pedido!`);
+    openCart();
+}

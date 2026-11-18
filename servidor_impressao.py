@@ -2,15 +2,16 @@
 Servidor de Integracao para Fila de Impressao Roland VersaWorks 5
 Empresa: Calegari Sublimacao
 Porta: 5050
-Arquitetura: FastAPI + Uvicorn (Ultra-estavel, async, multi-conexao nativa, CORS completo)
+Arquitetura: FastAPI + Uvicorn (Suporta estampas de catalogo e uploads unicos temporarios)
 """
 
 import os
 import shutil
 import glob
 import time
+import base64
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -194,6 +195,25 @@ def salvar_pdf_compativel_versaworks(doc_fitz, caminho_destino: str):
         use_objstms=0
     )
 
+def salvar_arquivo_temporario_base64(dados_base64: str, nome_arquivo_original: str):
+    """
+    Decodifica e salva em temp_jobs um arquivo enviado via Base64 (upload único).
+    Retorna o caminho absoluto do arquivo salvo.
+    """
+    if "," in dados_base64:
+        dados_base64 = dados_base64.split(",", 1)[1]
+    
+    conteudo_bytes = base64.b64decode(dados_base64)
+    _, ext = os.path.splitext(nome_arquivo_original)
+    if not ext:
+        ext = ".jpg"
+    
+    nome_seguro = f"upload_unico_{time.time_ns()}{ext.lower()}"
+    caminho_salvo = os.path.join(PASTA_TEMP_LOCAL, nome_seguro)
+    with open(caminho_salvo, "wb") as f:
+        f.write(conteudo_bytes)
+    return caminho_salvo
+
 def processar_envio_hotfolder(itens_carrinho: List[Dict], pasta_destino_hotfolder: str, limite_unificar: int):
     if not os.path.exists(pasta_destino_hotfolder):
         msg = f"Erro: Hot folder de destino nao encontrada: {pasta_destino_hotfolder}"
@@ -203,18 +223,33 @@ def processar_envio_hotfolder(itens_carrinho: List[Dict], pasta_destino_hotfolde
     relatorio = []
     lista_tarefas = []
     codigos_unicos = set()
+    arquivos_temporarios_criados = []
 
     for item in itens_carrinho:
         codigo = item.get('id')
         categoria = item.get('category')
         tamanhos = item.get('sizes', {})
+        dados_base64 = item.get('fileData')
+        nome_arquivo = item.get('fileName')
 
-        arquivo_origem = buscar_arquivo_arte(categoria, codigo)
-        if not arquivo_origem:
-            msg = f"Nao encontrado: Estampa {codigo} na categoria {categoria}"
-            registrar_log(msg)
-            relatorio.append(msg)
-            continue
+        # Se for Upload Único temporário (veio com fileData base64)
+        if dados_base64:
+            try:
+                arquivo_origem = salvar_arquivo_temporario_base64(dados_base64, nome_arquivo or f"{codigo}.jpg")
+                arquivos_temporarios_criados.append(arquivo_origem)
+                registrar_log(f"Upload Único recebido: {codigo} ({nome_arquivo}) -> salvo temporariamente em {arquivo_origem}")
+            except Exception as e:
+                msg = f"Erro ao decodificar upload único {codigo}: {e}"
+                registrar_log(msg)
+                relatorio.append(msg)
+                continue
+        else:
+            arquivo_origem = buscar_arquivo_arte(categoria, codigo)
+            if not arquivo_origem:
+                msg = f"Nao encontrado: Estampa {codigo} na categoria {categoria}"
+                registrar_log(msg)
+                relatorio.append(msg)
+                continue
 
         codigos_unicos.add(str(codigo))
 
@@ -230,6 +265,11 @@ def processar_envio_hotfolder(itens_carrinho: List[Dict], pasta_destino_hotfolde
             })
 
     if not lista_tarefas:
+        # Limpa temporários se não houver tarefas
+        for temp_file in arquivos_temporarios_criados:
+            if os.path.exists(temp_file):
+                try: os.remove(temp_file)
+                except Exception: pass
         return relatorio
 
     total_codigos = len(codigos_unicos)
@@ -301,6 +341,15 @@ def processar_envio_hotfolder(itens_carrinho: List[Dict], pasta_destino_hotfolde
                 registrar_log(msg)
                 relatorio.append(msg)
 
+    # Limpeza dos arquivos temporários de upload único após o envio
+    for temp_file in arquivos_temporarios_criados:
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+                registrar_log(f"Temporário de upload único excluído: {temp_file}")
+            except Exception:
+                pass
+
     return relatorio
 
 # === FASTAPI APP ===
@@ -336,4 +385,4 @@ async def enviar_impressao(request: Request):
 
 if __name__ == '__main__':
     registrar_log("Iniciando Servidor Roland VersaWorks 5 na porta 5050 (FastAPI + Uvicorn)...")
-    uvicorn.run(app, host="0.0.0.0", port=5050, log_level="warning")
+    uvicorn.run(app, host="0.0.0.0", port=5050, log_config=None)

@@ -18,13 +18,16 @@
     <meta property="og:image" content="preview.jpg">
     <meta property="og:site_name" content="Calegari Sublimação">
 
-    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
     <header>
         <div class="header-content">
             <h1>Calegari Sublimação</h1>
             <div class="header-right">
+                <button class="custom-upload-btn" onclick="openUploadModal()" title="Adicionar estampa temporária / avulsa">
+                    <span class="upload-icon">📤</span> <span class="upload-text">Upload Único</span>
+                </button>
                 <button class="import-btn" onclick="openImportModal()" title="Importar pedido do WhatsApp">
                     <span class="import-icon">📥</span> <span class="import-text">Importar Pedido</span>
                 </button>
@@ -170,12 +173,18 @@
             <button class="cart-quick-import-btn" onclick="openImportModal()">
                 <span>📥</span> Colar / Importar Pedido do WhatsApp
             </button>
+            <button class="cart-quick-upload-btn" onclick="openUploadModal()">
+                <span>📤</span> Adicionar Estampa Única / Temporária
+            </button>
         </div>
         <div id="cart-items" class="cart-items">
             <!-- Itens do carrinho -->
             <div class="empty-cart-message">
                 <p>Seu carrinho está vazio.</p>
-                <button class="empty-cart-import-btn" onclick="openImportModal()">📥 Importar Pedido do WhatsApp</button>
+                <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px;">
+                    <button class="empty-cart-import-btn" onclick="openImportModal()">📥 Importar Pedido do WhatsApp</button>
+                    <button class="empty-cart-upload-btn" onclick="openUploadModal()">📤 Upload de Estampa Única</button>
+                </div>
             </div>
         </div>
         <div class="cart-footer">
@@ -216,6 +225,83 @@
             <img id="zoom-image" src="" alt="Zoom da Estampa">
             <video id="zoom-video" src="" autoplay loop muted playsinline style="display: none;"></video>
             <p class="zoom-tip">🔍 Dica: toque na foto para ver mais de perto</p>
+        </div>
+    </div>
+
+    <!-- Modal de Upload Único / Temporário -->
+    <div id="upload-modal" class="modal" onclick="if(event.target===this) closeUploadModal()">
+        <div class="modal-content upload-modal-content">
+            <span class="close-btn" onclick="closeUploadModal()">&times;</span>
+            <div class="upload-modal-body">
+                <div class="upload-modal-header">
+                    <h2>📤 Upload Único (Estampa Temporária)</h2>
+                    <p>Adicione um arquivo de estampa do seu computador (.pdf, .jpg, .png) para rodar <strong>apenas nesta impressão</strong> pelo VersaWorks, sem precisar cadastrar no catálogo!</p>
+                </div>
+
+                <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('upload-file-input').click()">
+                    <input type="file" id="upload-file-input" accept=".pdf,.png,.jpg,.jpeg,.eps,.tif" style="display: none;" onchange="onUploadFileSelected(event)">
+                    <div id="dropzone-content">
+                        <span class="dropzone-icon">📁</span>
+                        <strong>Clique aqui ou arraste o arquivo da estampa</strong>
+                        <small>Formatos aceitos: PDF, JPG, PNG, EPS (Até 100MB)</small>
+                    </div>
+                </div>
+
+                <div id="upload-preview-area" class="upload-preview-area" style="display: none;">
+                    <div class="upload-preview-card">
+                        <div class="upload-thumb-wrap">
+                            <img id="upload-preview-img" src="" alt="Prévia">
+                            <div id="upload-pdf-badge" style="display:none;" class="pdf-badge">📄 Arquivo PDF</div>
+                        </div>
+                        <div class="upload-file-details">
+                            <label for="upload-item-name"><strong>Identificação da Arte:</strong></label>
+                            <input type="text" id="upload-item-name" placeholder="Ex: Cliente João - Logo Frente">
+                            <span id="upload-file-meta" class="upload-meta-text">0 KB</span>
+                        </div>
+                    </div>
+
+                    <div class="size-selector upload-size-selector">
+                        <h3>Tamanhos de Impressão (Quantidade):</h3>
+                        <div class="sizes-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                            <div class="size-input-group">
+                                <label for="upload-qty-default">Tamanho Default<br><small style="font-weight: normal; color: #666;">(Original do arquivo)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('upload-qty-default', -1)">-</button>
+                                    <input type="number" id="upload-qty-default" min="0" value="0">
+                                    <button type="button" onclick="changeQty('upload-qty-default', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="upload-qty-369mm" id="label-upload-369mm">369mm<br><small style="font-weight: normal; color: #666;">(Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('upload-qty-369mm', -1)">-</button>
+                                    <input type="number" id="upload-qty-369mm" min="0" value="0">
+                                    <button type="button" onclick="changeQty('upload-qty-369mm', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="upload-qty-300mm" id="label-upload-300mm">300mm<br><small style="font-weight: normal; color: #666;">(Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('upload-qty-300mm', -1)">-</button>
+                                    <input type="number" id="upload-qty-300mm" min="0" value="0">
+                                    <button type="button" onclick="changeQty('upload-qty-300mm', 1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="upload-error-msg" style="display: none; color: #ff4757; font-size: 0.95rem; margin-top: 10px; text-align: center; font-weight: 600;"></div>
+
+                <div class="upload-modal-actions">
+                    <button class="import-action-btn import-btn-primary" onclick="confirmAddUploadToCart()" id="btn-upload-confirm" disabled>
+                        ➕ Adicionar Estampa ao Pedido
+                    </button>
+                    <button class="import-action-btn import-btn-cancel" onclick="closeUploadModal()">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -268,6 +354,6 @@
 
     <script src="tabela_precos.js?v=1"></script>
     <script src="dados.js?v=1"></script>
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=3"></script>
 </body>
 </html>
