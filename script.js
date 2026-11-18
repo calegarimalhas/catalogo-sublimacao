@@ -314,19 +314,27 @@ function openModal(item) {
     imgObj.onload = function() {
         isCurrentLandscape = imgObj.width >= imgObj.height;
         const label369 = document.getElementById('label-size-369mm');
-        const label300 = document.getElementById('label-size-300mm');
+        const labelA4 = document.getElementById('label-size-a4');
+        const labelJuvenil = document.getElementById('label-size-juvenil');
+        const labelInfantil = document.getElementById('label-size-infantil');
         
         if (label369) {
             label369.innerHTML = `369mm<br><small style="font-weight: normal; color: #666;">(${isCurrentLandscape ? '369mm de largura' : '369mm de altura'})</small>`;
         }
-        if (label300) {
-            label300.innerHTML = `300mm<br><small style="font-weight: normal; color: #666;">(${isCurrentLandscape ? '300mm de largura' : '300mm de altura'})</small>`;
+        if (labelA4) {
+            labelA4.innerHTML = `A4<br><small style="font-weight: normal; color: #666;">(${isCurrentLandscape ? '300mm de largura' : '300mm de altura'})</small>`;
+        }
+        if (labelJuvenil) {
+            labelJuvenil.innerHTML = `Juvenil<br><small style="font-weight: normal; color: #666;">(${isCurrentLandscape ? '240mm de largura' : '240mm de altura'})</small>`;
+        }
+        if (labelInfantil) {
+            labelInfantil.innerHTML = `Infantil<br><small style="font-weight: normal; color: #666;">(${isCurrentLandscape ? '200mm de largura' : '200mm de altura'})</small>`;
         }
     };
     imgObj.src = item.image;
     
     // Resetar inputs de quantidade
-    ['size-default', 'size-369mm', 'size-300mm'].forEach(id => {
+    ['size-default', 'size-369mm', 'size-a4', 'size-juvenil', 'size-infantil'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '0';
     });
@@ -368,11 +376,13 @@ window.onclick = function(event) {
 function addToCart() {
     if (!currentProduct) return;
     
-    const qtyDefault = parseInt(document.getElementById('size-default').value) || 0;
-    const qty369 = parseInt(document.getElementById('size-369mm').value) || 0;
-    const qty300 = parseInt(document.getElementById('size-300mm').value) || 0;
+    const qtyDefault = parseInt(document.getElementById('size-default')?.value) || 0;
+    const qty369 = parseInt(document.getElementById('size-369mm')?.value) || 0;
+    const qtyA4 = parseInt(document.getElementById('size-a4')?.value) || 0;
+    const qtyJuvenil = parseInt(document.getElementById('size-juvenil')?.value) || 0;
+    const qtyInfantil = parseInt(document.getElementById('size-infantil')?.value) || 0;
 
-    const totalQty = qtyDefault + qty369 + qty300;
+    const totalQty = qtyDefault + qty369 + qtyA4 + qtyJuvenil + qtyInfantil;
     
     if (totalQty === 0) {
         const errMsg = document.getElementById('modal-error-msg');
@@ -394,9 +404,17 @@ function addToCart() {
         const dimLabel = isCurrentLandscape ? '369mm (Largura)' : '369mm (Altura)';
         sizesMap[dimLabel] = qty369;
     }
-    if (qty300 > 0) {
-        const dimLabel = isCurrentLandscape ? '300mm (Largura)' : '300mm (Altura)';
-        sizesMap[dimLabel] = qty300;
+    if (qtyA4 > 0) {
+        const dimLabel = isCurrentLandscape ? 'A4 (300mm Largura)' : 'A4 (300mm Altura)';
+        sizesMap[dimLabel] = qtyA4;
+    }
+    if (qtyJuvenil > 0) {
+        const dimLabel = isCurrentLandscape ? 'Juvenil (240mm Largura)' : 'Juvenil (240mm Altura)';
+        sizesMap[dimLabel] = qtyJuvenil;
+    }
+    if (qtyInfantil > 0) {
+        const dimLabel = isCurrentLandscape ? 'Infantil (200mm Largura)' : 'Infantil (200mm Altura)';
+        sizesMap[dimLabel] = qtyInfantil;
     }
 
     // Procura se o item já existe no carrinho
@@ -706,7 +724,7 @@ function parseWhatsAppOrder(text) {
         if (currentItem) {
             const cleanLine = line.replace(/^[•\-\*\s]+/, '').replace(/[*_~]/g, '').trim();
             
-            const isSizeLine = /default|original|369|300|\bmm\b/i.test(cleanLine);
+            const isSizeLine = /default|original|369|300|a4|juvenil|240|infantil|200|\bmm\b/i.test(cleanLine);
             if (!isSizeLine) continue;
 
             const qtyMatch = cleanLine.match(/:\s*(\d+)/) || cleanLine.match(/(\d+)\s*(?:unid|unidades|un|pe[çc]as)?$/i);
@@ -718,21 +736,13 @@ function parseWhatsAppOrder(text) {
                     if (/default/i.test(sizeLabel) || /original/i.test(sizeLabel)) {
                         sizeLabel = 'Default (Original)';
                     } else if (/369/i.test(sizeLabel)) {
-                        if (/altura/i.test(sizeLabel)) {
-                            sizeLabel = '369mm (Altura)';
-                        } else if (/largura/i.test(sizeLabel)) {
-                            sizeLabel = '369mm (Largura)';
-                        } else {
-                            sizeLabel = '369mm (Largura)';
-                        }
-                    } else if (/300/i.test(sizeLabel)) {
-                        if (/altura/i.test(sizeLabel)) {
-                            sizeLabel = '300mm (Altura)';
-                        } else if (/largura/i.test(sizeLabel)) {
-                            sizeLabel = '300mm (Largura)';
-                        } else {
-                            sizeLabel = '300mm (Largura)';
-                        }
+                        sizeLabel = /altura/i.test(sizeLabel) ? '369mm (Altura)' : '369mm (Largura)';
+                    } else if (/a4/i.test(sizeLabel) || /300/i.test(sizeLabel)) {
+                        sizeLabel = /altura/i.test(sizeLabel) ? 'A4 (300mm Altura)' : 'A4 (300mm Largura)';
+                    } else if (/juvenil/i.test(sizeLabel) || /240/i.test(sizeLabel)) {
+                        sizeLabel = /altura/i.test(sizeLabel) ? 'Juvenil (240mm Altura)' : 'Juvenil (240mm Largura)';
+                    } else if (/infantil/i.test(sizeLabel) || /200/i.test(sizeLabel)) {
+                        sizeLabel = /altura/i.test(sizeLabel) ? 'Infantil (200mm Altura)' : 'Infantil (200mm Largura)';
                     }
                     
                     currentItem.sizes[sizeLabel] = (currentItem.sizes[sizeLabel] || 0) + qty;
@@ -967,7 +977,7 @@ function openUploadModal() {
     const btnConfirm = document.getElementById('btn-upload-confirm');
     if (btnConfirm) btnConfirm.disabled = true;
 
-    ['upload-qty-default', 'upload-qty-369mm', 'upload-qty-300mm'].forEach(id => {
+    ['upload-qty-default', 'upload-qty-369mm', 'upload-qty-a4', 'upload-qty-juvenil', 'upload-qty-infantil'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '0';
     });
@@ -1041,12 +1051,20 @@ function handleUploadFile(file) {
 
 function updateUploadSizeLabels(isLandscape) {
     const label369 = document.getElementById('label-upload-369mm');
-    const label300 = document.getElementById('label-upload-300mm');
+    const labelA4 = document.getElementById('label-upload-a4');
+    const labelJuvenil = document.getElementById('label-upload-juvenil');
+    const labelInfantil = document.getElementById('label-upload-infantil');
     if (label369) {
         label369.innerHTML = `369mm<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '369mm de largura' : '369mm de altura'})</small>`;
     }
-    if (label300) {
-        label300.innerHTML = `300mm<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '300mm de largura' : '300mm de altura'})</small>`;
+    if (labelA4) {
+        labelA4.innerHTML = `A4<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '300mm de largura' : '300mm de altura'})</small>`;
+    }
+    if (labelJuvenil) {
+        labelJuvenil.innerHTML = `Juvenil<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '240mm de largura' : '240mm de altura'})</small>`;
+    }
+    if (labelInfantil) {
+        labelInfantil.innerHTML = `Infantil<br><small style="font-weight: normal; color: #666;">(${isLandscape ? '200mm de largura' : '200mm de altura'})</small>`;
     }
 }
 
@@ -1086,11 +1104,13 @@ function confirmAddUploadToCart() {
         return;
     }
 
-    const qtyDefault = parseInt(document.getElementById('upload-qty-default').value) || 0;
-    const qty369 = parseInt(document.getElementById('upload-qty-369mm').value) || 0;
-    const qty300 = parseInt(document.getElementById('upload-qty-300mm').value) || 0;
+    const qtyDefault = parseInt(document.getElementById('upload-qty-default')?.value) || 0;
+    const qty369 = parseInt(document.getElementById('upload-qty-369mm')?.value) || 0;
+    const qtyA4 = parseInt(document.getElementById('upload-qty-a4')?.value) || 0;
+    const qtyJuvenil = parseInt(document.getElementById('upload-qty-juvenil')?.value) || 0;
+    const qtyInfantil = parseInt(document.getElementById('upload-qty-infantil')?.value) || 0;
 
-    const totalQty = qtyDefault + qty369 + qty300;
+    const totalQty = qtyDefault + qty369 + qtyA4 + qtyJuvenil + qtyInfantil;
     const errMsg = document.getElementById('upload-error-msg');
 
     if (totalQty === 0) {
@@ -1110,9 +1130,17 @@ function confirmAddUploadToCart() {
         const dimLabel = isUploadLandscape ? '369mm (Largura)' : '369mm (Altura)';
         sizesMap[dimLabel] = qty369;
     }
-    if (qty300 > 0) {
-        const dimLabel = isUploadLandscape ? '300mm (Largura)' : '300mm (Altura)';
-        sizesMap[dimLabel] = qty300;
+    if (qtyA4 > 0) {
+        const dimLabel = isUploadLandscape ? 'A4 (300mm Largura)' : 'A4 (300mm Altura)';
+        sizesMap[dimLabel] = qtyA4;
+    }
+    if (qtyJuvenil > 0) {
+        const dimLabel = isUploadLandscape ? 'Juvenil (240mm Largura)' : 'Juvenil (240mm Altura)';
+        sizesMap[dimLabel] = qtyJuvenil;
+    }
+    if (qtyInfantil > 0) {
+        const dimLabel = isUploadLandscape ? 'Infantil (200mm Largura)' : 'Infantil (200mm Altura)';
+        sizesMap[dimLabel] = qtyInfantil;
     }
 
     const nameInput = document.getElementById('upload-item-name');

@@ -18,7 +18,7 @@
     <meta property="og:image" content="preview.jpg">
     <meta property="og:site_name" content="Calegari Sublimação">
 
-    <link rel="stylesheet" href="styles.css?v=3">
+    <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
     <header>
@@ -88,9 +88,9 @@
 
                     <div class="size-selector">
                         <h3>Tamanhos de Impressão (Quantidade):</h3>
-                        <div class="sizes-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                        <div class="sizes-grid" style="grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));">
                             <div class="size-input-group">
-                                <label for="size-default">Tamanho Default<br><small style="font-weight: normal; color: #666;">(Original do arquivo)</small></label>
+                                <label for="size-default">Tamanho Default<br><small style="font-weight: normal; color: #666;">(Original)</small></label>
                                 <div class="number-control">
                                     <button type="button" onclick="changeQty('size-default', -1)">-</button>
                                     <input type="number" id="size-default" min="0" value="0">
@@ -106,11 +106,27 @@
                                 </div>
                             </div>
                             <div class="size-input-group">
-                                <label for="size-300mm" id="label-size-300mm">300mm<br><small style="font-weight: normal; color: #666;">(Proporcional)</small></label>
+                                <label for="size-a4" id="label-size-a4">A4<br><small style="font-weight: normal; color: #666;">(300mm Proporcional)</small></label>
                                 <div class="number-control">
-                                    <button type="button" onclick="changeQty('size-300mm', -1)">-</button>
-                                    <input type="number" id="size-300mm" min="0" value="0">
-                                    <button type="button" onclick="changeQty('size-300mm', 1)">+</button>
+                                    <button type="button" onclick="changeQty('size-a4', -1)">-</button>
+                                    <input type="number" id="size-a4" min="0" value="0">
+                                    <button type="button" onclick="changeQty('size-a4', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="size-juvenil" id="label-size-juvenil">Juvenil<br><small style="font-weight: normal; color: #666;">(240mm Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('size-juvenil', -1)">-</button>
+                                    <input type="number" id="size-juvenil" min="0" value="0">
+                                    <button type="button" onclick="changeQty('size-juvenil', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="size-infantil" id="label-size-infantil">Infantil<br><small style="font-weight: normal; color: #666;">(200mm Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('size-infantil', -1)">-</button>
+                                    <input type="number" id="size-infantil" min="0" value="0">
+                                    <button type="button" onclick="changeQty('size-infantil', 1)">+</button>
                                 </div>
                             </div>
                         </div>
@@ -145,7 +161,7 @@
                         <div class="step-number">2</div>
                         <div class="step-info">
                             <strong>Defina as Quantidades e Tamanhos</strong>
-                            <span>Escolha entre Default, 369mm e 300mm (calculados proporcionalmente) e use os botões <b>+</b> e <b>-</b>.</span>
+                            <span>Escolha entre Default, 369mm, A4 (300mm), Juvenil (240mm) e Infantil (200mm) (calculados proporcionalmente) e use os botões <b>+</b> e <b>-</b>.</span>
                         </div>
                     </div>
 
@@ -262,9 +278,9 @@
 
                     <div class="size-selector upload-size-selector">
                         <h3>Tamanhos de Impressão (Quantidade):</h3>
-                        <div class="sizes-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                        <div class="sizes-grid" style="grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));">
                             <div class="size-input-group">
-                                <label for="upload-qty-default">Tamanho Default<br><small style="font-weight: normal; color: #666;">(Original do arquivo)</small></label>
+                                <label for="upload-qty-default">Tamanho Default<br><small style="font-weight: normal; color: #666;">(Original)</small></label>
                                 <div class="number-control">
                                     <button type="button" onclick="changeQty('upload-qty-default', -1)">-</button>
                                     <input type="number" id="upload-qty-default" min="0" value="0">
@@ -280,11 +296,27 @@
                                 </div>
                             </div>
                             <div class="size-input-group">
-                                <label for="upload-qty-300mm" id="label-upload-300mm">300mm<br><small style="font-weight: normal; color: #666;">(Proporcional)</small></label>
+                                <label for="upload-qty-a4" id="label-upload-a4">A4<br><small style="font-weight: normal; color: #666;">(300mm Proporcional)</small></label>
                                 <div class="number-control">
-                                    <button type="button" onclick="changeQty('upload-qty-300mm', -1)">-</button>
-                                    <input type="number" id="upload-qty-300mm" min="0" value="0">
-                                    <button type="button" onclick="changeQty('upload-qty-300mm', 1)">+</button>
+                                    <button type="button" onclick="changeQty('upload-qty-a4', -1)">-</button>
+                                    <input type="number" id="upload-qty-a4" min="0" value="0">
+                                    <button type="button" onclick="changeQty('upload-qty-a4', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="upload-qty-juvenil" id="label-upload-juvenil">Juvenil<br><small style="font-weight: normal; color: #666;">(240mm Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('upload-qty-juvenil', -1)">-</button>
+                                    <input type="number" id="upload-qty-juvenil" min="0" value="0">
+                                    <button type="button" onclick="changeQty('upload-qty-juvenil', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="size-input-group">
+                                <label for="upload-qty-infantil" id="label-upload-infantil">Infantil<br><small style="font-weight: normal; color: #666;">(200mm Proporcional)</small></label>
+                                <div class="number-control">
+                                    <button type="button" onclick="changeQty('upload-qty-infantil', -1)">-</button>
+                                    <input type="number" id="upload-qty-infantil" min="0" value="0">
+                                    <button type="button" onclick="changeQty('upload-qty-infantil', 1)">+</button>
                                 </div>
                             </div>
                         </div>
@@ -354,6 +386,6 @@
 
     <script src="tabela_precos.js?v=1"></script>
     <script src="dados.js?v=1"></script>
-    <script src="script.js?v=3"></script>
+    <script src="script.js?v=5"></script>
 </body>
 </html>

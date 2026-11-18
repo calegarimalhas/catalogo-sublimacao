@@ -91,8 +91,12 @@ def gerar_doc_arte(caminho_origem: str, tamanho_nome: str, quantidade: int, past
     target_mm = None
     if "369mm" in tamanho_lower or "369" in tamanho_lower:
         target_mm = 369.0
-    elif "300mm" in tamanho_lower or "300" in tamanho_lower:
+    elif "a4" in tamanho_lower or "300mm" in tamanho_lower or "300" in tamanho_lower:
         target_mm = 300.0
+    elif "juvenil" in tamanho_lower or "240mm" in tamanho_lower or "240" in tamanho_lower:
+        target_mm = 240.0
+    elif "infantil" in tamanho_lower or "200mm" in tamanho_lower or "200" in tamanho_lower:
+        target_mm = 200.0
 
     ext = os.path.splitext(caminho_origem)[1].lower()
 

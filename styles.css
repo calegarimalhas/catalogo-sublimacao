@@ -360,20 +360,28 @@ header h1 {
 
 .sizes-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 25px;
+    grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
 .size-input-group {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
 }
 
 .size-input-group label {
     font-weight: 600;
-    margin-bottom: 5px;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
     color: var(--text-dark);
+    line-height: 1.25;
+    min-height: 38px;
 }
 
 .number-control {
